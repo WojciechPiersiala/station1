@@ -17,9 +17,11 @@ namespace station1.Forms
     {
         private Logger log;
         private TcpServer tcpServer;
+        private bool isTcpListening;
         CancellationTokenSource cancelTcp;
         public Form_mainDisplay()
         {
+            isTcpListening = false;
             this.ShowIcon = false;
             this.FormBorderStyle = FormBorderStyle.None;
             InitializeComponent();
@@ -37,19 +39,33 @@ namespace station1.Forms
         private void button_start_Click(object sender, EventArgs e)
         {
             Button tmpButton = (Button)sender;
-            if (tmpButton.Text == "Start")
+            if (!isTcpListening)
             {
                 cancelTcp = new CancellationTokenSource();
-                Task taskTCp = Task.Run(() => tcpServer.RunTcp(cancelTcp.Token));
+                Task taskTCp = Task.Run(() => tcpServer.ListenTcp(cancelTcp.Token));
+                isTcpListening = true;
                 tmpButton.Text = "Stop";
             }
-            else if(tmpButton.Text == "Stop")
+            else
             {
-                tcpServer.stopTcp();
-                //cancelTcp.Cancel();
+                isTcpListening = false;
+                tcpServer.StopTcp();
+                cancelTcp.Cancel();
                 tmpButton.Text = "Start";
             }
+        }
 
+        private void richTextBox_logger_TextChanged(object sender, EventArgs e)
+        {
+            // set the current caret position to the end
+            richTextBox_logger.SelectionStart = richTextBox_logger.Text.Length;
+            // scroll it automatically
+            richTextBox_logger.ScrollToCaret();
+        }
+
+        private void button_send_Click(object sender, EventArgs e)
+        {
+            tcpServer.SendTcp();
         }
     }
 }

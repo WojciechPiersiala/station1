@@ -9,6 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualBasic.Logging;
 using station1.Utils;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.IO;
+using System.Linq.Expressions;
 
 namespace station1.Models
 {
@@ -16,24 +19,16 @@ namespace station1.Models
     {
         private Logger log;
         private TcpListener server;
+        private NetworkStream stream;
+        private TcpClient currentClient;
 
         public TcpServer(Logger log)
         {
             this.log = log;
         }
 
-        //public async void StopTcp()
-        public async Task RunTcp(CancellationToken clcTok)
+        public async Task ListenTcp(CancellationToken clcTok)
         {
-            //while (!clcTok.IsCancellationRequested)
-            //{
-            //    await Task.Delay(1000);
-            //    log.Log("TEST");
-            //}
-
-
-            ////localIpAddress = IPAddress.Parse("192.168.1.3");
-            ///
             server = null;
             try
             {
@@ -47,25 +42,12 @@ namespace station1.Models
 
                 while (!clcTok.IsCancellationRequested)
                 {
-                    //Task waitForConn = new Task(() => log.Log_W("wait"));
-
-                    //CancellationTokenSource clcWait = new();
-                    //_ = Task.Run(() =>
-                    //{
-                    //    while (!clcWait.Token.IsCancellationRequested)
-                    //    {
-                    //        log.Log_E("Wait");
-                    //        Thread.Sleep(1000);
-                    //    }
-                    //}, clcWait.Token);
-
                     log.Log_I("Waiting for connection ...");
-                    using TcpClient handler = await server.AcceptTcpClientAsync();
+                    currentClient = await server.AcceptTcpClientAsync(clcTok);
                     log.Log_I("Connected!");
-                    //clcWait.Cancel();
 
                     data = null;
-                    NetworkStream stream = handler.GetStream();
+                    stream = currentClient.GetStream();
                     int i = 0;
 
                     // Loop to receive all the data sent by the client.
@@ -73,21 +55,16 @@ namespace station1.Models
                     {
                         data = Encoding.ASCII.GetString(bytes, 0, i);
                         log.Log_I($"Received: {data}");
-                        // Process the data sent by the client.
-                        //data = data.ToUpper();
-
-                        //byte[] msg = Encoding.ASCII.GetBytes(data);
-
-                        // Send back a response.
-                        //stream.Write(msg, 0, msg.Length);
-                        //log.Log_I($"Sent: {data}");
                     }
                 }
             }
-            catch(Exception e)
+            catch (ObjectDisposedException)
+            {
+                log.Log_W("Server stopped while waiting for a client. Socket was closed.");
+            }
+            catch (Exception e)
             {
                 log.Log_E($"Server exception : {e.Message}");
-                //MessageBox.Show($"SocketException: {e.Message}");
             }
             finally
             {
@@ -95,11 +72,54 @@ namespace station1.Models
             }
         }
 
-        public void stopTcp()
+        public void StopTcp()
         {
+            try
+            {
+                stream?.Close();
+                stream?.Dispose();
+                currentClient?.Close();
+                currentClient?.Dispose();
+                log.Log_I("Server stopped");
+            }
+            catch (Exception e)
+            {
+                log.Log_E($"Error while stopping the tcp server: {e.Message}");
+            }
             server?.Stop();
             log.Log_I("Server stopped");
         }
-    }
 
+        public void SendTcp(string data= "Test \"Response from the laptop\"")
+        {
+            byte[] msg = System.Text.Encoding.ASCII.GetBytes(data);
+
+            // Send back a response.
+            try 
+            {
+                if (server != null && stream != null && stream.CanWrite)
+                {
+                    log.Log_I("Sending response ...");
+                    try
+                    {
+                        stream.Write(msg, 0, msg.Length);
+                        log.Log_I($"Response sent: \"{data}\"");
+                    }
+                    catch (Exception e)
+                    {
+                        log.Log_E(e.Message);
+                    }
+
+                }
+                else
+                {
+                    log.Log_W("Cannot send server null or closed");
+                }
+            }
+            catch (Exception e)
+            {
+                log.Log_E($"Error while sending a response: \"{e.Message}\"");
+            }
+        }
+    }
 }
