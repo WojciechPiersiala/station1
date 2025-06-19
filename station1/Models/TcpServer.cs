@@ -37,8 +37,10 @@ namespace station1.Models
                 log.Log_I("Listener starting ...");
                 server.Start();
                 log.Log_I($"Listener started: {ipEndPoint.Address}");
-                byte[] bytes = new byte[256];
-                string data = null;
+                //byte[] bytes = new byte[256];
+                //string data = null;
+
+                byte[] buffer = new byte[2048];  // match ESP32 sends
 
                 while (!clcTok.IsCancellationRequested)
                 {
@@ -46,16 +48,26 @@ namespace station1.Models
                     currentClient = await server.AcceptTcpClientAsync(clcTok);
                     log.Log_I("Connected!");
 
-                    data = null;
+                    //data = null;
                     stream = currentClient.GetStream();
-                    int i = 0;
+                    //int i = 0;
 
-                    // Loop to receive all the data sent by the client.
-                    while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
+                    //// Loop to receive all the data sent by the client.
+                    //while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
+                    //{
+                    //    data = Encoding.ASCII.GetString(bytes, 0, i);
+                    //    log.Log_I($"Received: {data}");
+                    //    Console.WriteLine($"Received: {data} \n\n");
+                    //}
+
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    short[] samples = new short[bytesRead / 2];
+                    for (int n = 0; n < samples.Length; n++)
                     {
-                        data = Encoding.ASCII.GetString(bytes, 0, i);
-                        log.Log_I($"Received: {data}");
+                        samples[n] = BitConverter.ToInt16(buffer, n * 2);
+                        Console.Write(samples[n]);
                     }
+                    Console.WriteLine(" ");
                 }
             }
             catch (ObjectDisposedException)
