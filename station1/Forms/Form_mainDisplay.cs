@@ -1,24 +1,31 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.VisualBasic.Logging;
 using station1.Models;
-using station1.Utils;
+
 
 namespace station1.Forms
-{
+{   
     public partial class Form_mainDisplay : FormWithRef
     {
         private Logger log;
         private TcpServer tcpServer;
+        private PdmPlotter pdmPlotter;
+
         private bool isTcpListening;
         CancellationTokenSource cancelTcp;
+        CancellationTokenSource cancelPlot;
+
+        private ConcurrentQueue<short[]> sampleQueue;
         public Form_mainDisplay()
         {
             isTcpListening = false;
@@ -27,7 +34,9 @@ namespace station1.Forms
             InitializeComponent();
             this.richTextBox_logger.ReadOnly = true;
             log = new Logger(richTextBox_logger);
-            tcpServer = new TcpServer(log);
+            sampleQueue = new ConcurrentQueue<short[]>();
+            tcpServer = new TcpServer(log, sampleQueue);
+            pdmPlotter = new PdmPlotter(formsPlot_pdm, sampleQueue);
         }
 
         private void button_exit_Click(object sender, EventArgs e)
@@ -41,17 +50,23 @@ namespace station1.Forms
             Button tmpButton = (Button)sender;
             if (!isTcpListening)
             {
-                cancelTcp = new CancellationTokenSource();
-                Task taskTCp = Task.Run(() => tcpServer.ListenTcp(cancelTcp.Token));
                 isTcpListening = true;
                 tmpButton.Text = "Stop";
+
+                cancelTcp = new CancellationTokenSource();
+                Task taskTcp = Task.Run(() => tcpServer.ListenTcp(cancelTcp.Token));
+                cancelPlot = new CancellationTokenSource();
+                Task taskPlot = Task.Run(() => pdmPlotter.Plot(cancelPlot.Token));
+
             }
             else
             {
                 isTcpListening = false;
-                tcpServer.StopTcp();
-                cancelTcp.Cancel();
                 tmpButton.Text = "Start";
+                tcpServer.StopTcp();
+
+                cancelTcp.Cancel();
+                cancelPlot.Cancel();
             }
         }
 
@@ -66,6 +81,9 @@ namespace station1.Forms
         private void button_send_Click(object sender, EventArgs e)
         {
             tcpServer.SendTcp();
+            /* tmp */
+            //pdmPlotter.Plot();
+
         }
     }
 }

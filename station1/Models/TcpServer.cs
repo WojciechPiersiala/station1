@@ -8,10 +8,10 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualBasic.Logging;
-using station1.Utils;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.IO;
 using System.Linq.Expressions;
+using System.Collections.Concurrent;
 
 namespace station1.Models
 {
@@ -21,10 +21,11 @@ namespace station1.Models
         private TcpListener server;
         private NetworkStream stream;
         private TcpClient currentClient;
-
-        public TcpServer(Logger log)
+        private ConcurrentQueue<short[]> sampleQueue;
+        public TcpServer(Logger log, ConcurrentQueue<short[]> sampleQueue)
         {
             this.log = log;
+            this.sampleQueue = sampleQueue;
         }
 
         public async Task ListenTcp(CancellationToken clcTok)
@@ -59,15 +60,18 @@ namespace station1.Models
                     //    log.Log_I($"Received: {data}");
                     //    Console.WriteLine($"Received: {data} \n\n");
                     //}
-
-                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                    short[] samples = new short[bytesRead / 2];
-                    for (int n = 0; n < samples.Length; n++)
+                    int bytesRead;
+                    while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) != 0)
                     {
-                        samples[n] = BitConverter.ToInt16(buffer, n * 2);
-                        Console.Write(samples[n]);
+                        short[] samples = new short[bytesRead / 2];
+                        for (int n = 0; n < samples.Length; n++)
+                        {
+                            samples[n] = BitConverter.ToInt16(buffer, n * 2);
+                            Console.Write($"{samples[n]} ");
+                        }
+                        Console.WriteLine("\n\n");
+                        sampleQueue.Enqueue(samples);
                     }
-                    Console.WriteLine(" ");
                 }
             }
             catch (ObjectDisposedException)

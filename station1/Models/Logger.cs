@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace station1.Utils
+namespace station1.Models
 {
     internal class Logger
     {

@@ -32,6 +32,7 @@
             richTextBox_logger = new RichTextBox();
             button_start = new Button();
             button_send = new Button();
+            formsPlot_pdm = new ScottPlot.WinForms.FormsPlot();
             SuspendLayout();
             // 
             // button_exit
@@ -47,10 +48,10 @@
             // 
             // richTextBox_logger
             // 
-            richTextBox_logger.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            richTextBox_logger.Location = new Point(12, 12);
+            richTextBox_logger.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            richTextBox_logger.Location = new Point(41, 224);
             richTextBox_logger.Name = "richTextBox_logger";
-            richTextBox_logger.Size = new Size(788, 380);
+            richTextBox_logger.Size = new Size(747, 168);
             richTextBox_logger.TabIndex = 1;
             richTextBox_logger.Text = "";
             richTextBox_logger.TextChanged += richTextBox_logger_TextChanged;
@@ -77,11 +78,21 @@
             button_send.UseVisualStyleBackColor = true;
             button_send.Click += button_send_Click;
             // 
+            // formsPlot_pdm
+            // 
+            formsPlot_pdm.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            formsPlot_pdm.DisplayScale = 1.25F;
+            formsPlot_pdm.Location = new Point(12, 1);
+            formsPlot_pdm.Name = "formsPlot_pdm";
+            formsPlot_pdm.Size = new Size(788, 206);
+            formsPlot_pdm.TabIndex = 4;
+            // 
             // Form_mainDisplay
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(812, 439);
+            Controls.Add(formsPlot_pdm);
             Controls.Add(button_send);
             Controls.Add(button_start);
             Controls.Add(richTextBox_logger);
@@ -97,5 +108,6 @@
         private RichTextBox richTextBox_logger;
         private Button button_start;
         private Button button_send;
+        private ScottPlot.WinForms.FormsPlot formsPlot_pdm;
     }
 }
