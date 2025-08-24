@@ -54,8 +54,10 @@ namespace station1.Forms
                 tmpButton.Text = "Stop";
 
                 cancelTcp = new CancellationTokenSource();
+                log.Log_I("Tcp server thread started");
                 Task taskTcp = Task.Run(() => tcpServer.ListenTcp(cancelTcp.Token));
                 cancelPlot = new CancellationTokenSource();
+                log.Log_I("Plotter thread started");
                 Task taskPlot = Task.Run(() => pdmPlotter.Plot(cancelPlot.Token));
 
             }
@@ -80,7 +82,7 @@ namespace station1.Forms
 
         private void button_send_Click(object sender, EventArgs e)
         {
-            tcpServer.SendTcp();
+            tcpServer.SendTcp("TEST\n");
             /* tmp */
             //pdmPlotter.Plot();
 

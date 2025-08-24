@@ -26,6 +26,21 @@ namespace station1.Models
             {
                 AppendClorLine(input, color);
             }
+
+            if(color == Color.Yellow)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+            }
+            else if(color == Color.Red)
+            {
+                Console.ForegroundColor = ConsoleColor.Red; 
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+            }
+            Console.WriteLine(input);
+            Console.ResetColor();
         }
 
         private void AppendClorLine(string input, Color color)

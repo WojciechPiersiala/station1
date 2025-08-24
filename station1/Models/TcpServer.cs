@@ -30,7 +30,7 @@ namespace station1.Models
 
         public async Task ListenTcp(CancellationToken clcTok)
         {
-            server = null;
+            server = null; 
             try
             {
                 var ipEndPoint = new IPEndPoint(IPAddress.Any, 5050);
@@ -67,9 +67,9 @@ namespace station1.Models
                         for (int n = 0; n < samples.Length; n++)
                         {
                             samples[n] = BitConverter.ToInt16(buffer, n * 2);
-                            Console.Write($"{samples[n]} ");
+                            //Console.Write($"{samples[n]} ");
                         }
-                        Console.WriteLine("\n\n");
+                        //Console.WriteLine("\n\n");
                         sampleQueue.Enqueue(samples);
                     }
                 }
