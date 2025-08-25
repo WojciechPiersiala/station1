@@ -106,7 +106,7 @@ namespace station1.Models
             log.Log_I("Server stopped");
         }
 
-        public void SendTcp(string data= "Test \"Response from the laptop\"")
+        public void SendTcp(string data= "testdata")
         {
             byte[] msg = System.Text.Encoding.ASCII.GetBytes(data);
 
@@ -115,11 +115,10 @@ namespace station1.Models
             {
                 if (server != null && stream != null && stream.CanWrite)
                 {
-                    log.Log_I("Sending response ...");
                     try
                     {
                         stream.Write(msg, 0, msg.Length);
-                        log.Log_I($"Response sent: \"{data}\"");
+                        log.Log_I($"Message sent: \"{data}\"");
                     }
                     catch (Exception e)
                     {

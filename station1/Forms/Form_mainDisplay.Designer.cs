@@ -33,12 +33,13 @@
             button_start = new Button();
             button_send = new Button();
             formsPlot_pdm = new ScottPlot.WinForms.FormsPlot();
+            textBox_input = new TextBox();
             SuspendLayout();
             // 
             // button_exit
             // 
             button_exit.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            button_exit.Location = new Point(679, 398);
+            button_exit.Location = new Point(679, 396);
             button_exit.Name = "button_exit";
             button_exit.Size = new Size(121, 29);
             button_exit.TabIndex = 0;
@@ -49,9 +50,9 @@
             // richTextBox_logger
             // 
             richTextBox_logger.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            richTextBox_logger.Location = new Point(41, 224);
+            richTextBox_logger.Location = new Point(41, 222);
             richTextBox_logger.Name = "richTextBox_logger";
-            richTextBox_logger.Size = new Size(747, 168);
+            richTextBox_logger.Size = new Size(747, 135);
             richTextBox_logger.TabIndex = 1;
             richTextBox_logger.Text = "";
             richTextBox_logger.TextChanged += richTextBox_logger_TextChanged;
@@ -59,7 +60,7 @@
             // button_start
             // 
             button_start.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            button_start.Location = new Point(12, 398);
+            button_start.Location = new Point(12, 396);
             button_start.Name = "button_start";
             button_start.Size = new Size(94, 29);
             button_start.TabIndex = 2;
@@ -70,7 +71,7 @@
             // button_send
             // 
             button_send.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            button_send.Location = new Point(112, 398);
+            button_send.Location = new Point(112, 396);
             button_send.Name = "button_send";
             button_send.Size = new Size(94, 29);
             button_send.TabIndex = 3;
@@ -84,14 +85,23 @@
             formsPlot_pdm.DisplayScale = 1.25F;
             formsPlot_pdm.Location = new Point(12, 1);
             formsPlot_pdm.Name = "formsPlot_pdm";
-            formsPlot_pdm.Size = new Size(788, 206);
+            formsPlot_pdm.Size = new Size(788, 204);
             formsPlot_pdm.TabIndex = 4;
+            // 
+            // textBox_input
+            // 
+            textBox_input.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            textBox_input.Location = new Point(41, 363);
+            textBox_input.Name = "textBox_input";
+            textBox_input.Size = new Size(747, 27);
+            textBox_input.TabIndex = 5;
             // 
             // Form_mainDisplay
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(812, 439);
+            ClientSize = new Size(812, 437);
+            Controls.Add(textBox_input);
             Controls.Add(formsPlot_pdm);
             Controls.Add(button_send);
             Controls.Add(button_start);
@@ -100,6 +110,7 @@
             Name = "Form_mainDisplay";
             Text = "Form_mainDisplay";
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -109,5 +120,6 @@
         private Button button_start;
         private Button button_send;
         private ScottPlot.WinForms.FormsPlot formsPlot_pdm;
+        private TextBox textBox_input;
     }
 }

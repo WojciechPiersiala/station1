@@ -82,7 +82,7 @@ namespace station1.Forms
 
         private void button_send_Click(object sender, EventArgs e)
         {
-            tcpServer.SendTcp("TEST\n");
+            tcpServer.SendTcp(textBox_input.Text + "\n");
             /* tmp */
             //pdmPlotter.Plot();
 
