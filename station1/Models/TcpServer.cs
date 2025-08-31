@@ -21,11 +21,27 @@ namespace station1.Models
         private TcpListener server;
         private NetworkStream stream;
         private TcpClient currentClient;
-        private ConcurrentQueue<short[]> sampleQueue;
-        public TcpServer(Logger log, ConcurrentQueue<short[]> sampleQueue)
+        private ConcurrentQueue<AudioData> sampleQueue;
+        private const int headerLen = 8;
+        private const bool isLogSamples = false;
+        private const bool isLogAudioInfo = true;
+        public TcpServer(Logger log, ConcurrentQueue<AudioData> sampleQueue)
         {
             this.log = log;
             this.sampleQueue = sampleQueue;
+            printIp();
+        }
+
+        private void printIp()
+        {
+            string hostName = Dns.GetHostName();
+            Console.WriteLine($"Host Name: {hostName}");
+            IPAddress[] ipAddresses = Dns.GetHostAddresses(hostName);
+            foreach (IPAddress ip in ipAddresses)
+            {
+                log.Log_I($"IP Address: {ip}");
+            }
+
         }
 
         public async Task ListenTcp(CancellationToken clcTok)
@@ -41,7 +57,7 @@ namespace station1.Models
                 //byte[] bytes = new byte[256];
                 //string data = null;
 
-                byte[] buffer = new byte[2048];  // match ESP32 sends
+                //byte[] audioBytes = new byte[2048];  // match ESP32 sends
 
                 while (!clcTok.IsCancellationRequested)
                 {
@@ -49,29 +65,61 @@ namespace station1.Models
                     currentClient = await server.AcceptTcpClientAsync(clcTok);
                     log.Log_I("Connected!");
 
-                    //data = null;
-                    stream = currentClient.GetStream();
-                    //int i = 0;
+                    //MessageType messageType = MessageType.Audio;
 
-                    //// Loop to receive all the data sent by the client.
-                    //while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
-                    //{
-                    //    data = Encoding.ASCII.GetString(bytes, 0, i);
-                    //    log.Log_I($"Received: {data}");
-                    //    Console.WriteLine($"Received: {data} \n\n");
-                    //}
-                    int bytesRead;
-                    while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) != 0)
+                    /* Recieved audio data */
+                    //if(messageType == MessageType.Audio)
+                    while(true)
                     {
-                        short[] samples = new short[bytesRead / 2];
-                        for (int n = 0; n < samples.Length; n++)
+                        stream = currentClient.GetStream();
+
+                        /* Read header */
+                        byte[] headerBytes = new byte[headerLen];
+                        int headerRead = 0;
+                        while (headerRead < headerLen)
                         {
-                            samples[n] = BitConverter.ToInt16(buffer, n * 2);
-                            //Console.Write($"{samples[n]} ");
+                            int read = stream.Read(headerBytes, headerRead, headerLen - headerRead);
+                            if (read == 0) throw new IOException("Connection closed before header received");
+                            headerRead += read;
                         }
-                        //Console.WriteLine("\n\n");
-                        sampleQueue.Enqueue(samples);
+                        //string headerStr = Encoding.ASCII.GetString(headerBytes[0]);
+                        //string headerType = Encoding.ASCII.GetString(new byte[] { headerBytes[0] });
+                        int timestamp = BitConverter.ToInt32(headerBytes, 1);
+                        char messageTypeChar = (char)headerBytes[0];
+
+
+                        //if (MessageTypeMap.TryGetValue(messageTypeChar, out string messageType))
+                        if (messageTypeChar == 'A') //Audio
+                        {
+                            if (isLogAudioInfo)
+                            {
+                                log.Log_I($"{messageTypeChar}: {timestamp}");
+                            }
+
+
+                            /* Read audio samples */
+                            int audioLen = 2048; // audio data length
+                            byte[] audioBytes = new byte[audioLen];
+                            int audioRead = 0;
+                            //short[] samples = new short[audioLen / 2];
+                            AudioData samples = new AudioData(timestamp);
+                            while (audioRead < audioLen)
+                            {
+                                int read = stream.Read(audioBytes, audioRead, audioLen - audioRead);
+                                if (read == 0) throw new IOException("Connection closed before audio received");
+                                audioRead += read;
+                            }
+
+                            for (int n = 0; n < samples.length; n++)
+                            {
+                                samples.samples[n] = BitConverter.ToInt16(audioBytes, n * 2);
+                                if (isLogSamples)
+                                    Console.Write($"{samples.samples[n]} ");
+                            }
+                            sampleQueue.Enqueue(samples);
+                        }
                     }
+                    log.Log_W("Connection stopped");
                 }
             }
             catch (ObjectDisposedException)

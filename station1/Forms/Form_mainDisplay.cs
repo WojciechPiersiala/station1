@@ -14,7 +14,7 @@ using station1.Models;
 
 
 namespace station1.Forms
-{   
+{
     public partial class Form_mainDisplay : FormWithRef
     {
         private Logger log;
@@ -25,7 +25,7 @@ namespace station1.Forms
         CancellationTokenSource cancelTcp;
         CancellationTokenSource cancelPlot;
 
-        private ConcurrentQueue<short[]> sampleQueue;
+        private ConcurrentQueue<AudioData> sampleQueue;
         public Form_mainDisplay()
         {
             isTcpListening = false;
@@ -34,7 +34,7 @@ namespace station1.Forms
             InitializeComponent();
             this.richTextBox_logger.ReadOnly = true;
             log = new Logger(richTextBox_logger);
-            sampleQueue = new ConcurrentQueue<short[]>();
+            sampleQueue = new ConcurrentQueue<AudioData>();
             tcpServer = new TcpServer(log, sampleQueue);
             pdmPlotter = new PdmPlotter(formsPlot_pdm, sampleQueue);
         }
@@ -87,5 +87,26 @@ namespace station1.Forms
             //pdmPlotter.Plot();
 
         }
+
+        private void tableLayoutPanel1_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void Form_mainDisplay_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void formsPlot_pdm_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox_input_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
     }
 }
