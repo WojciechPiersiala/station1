@@ -25,7 +25,7 @@ namespace station1.Forms
         CancellationTokenSource cancelTcp;
         CancellationTokenSource cancelPlot;
 
-        private ConcurrentQueue<AudioData> sampleQueue;
+        //private ConcurrentQueue<AudioData> sampleQueue;
         public Form_mainDisplay()
         {
             isTcpListening = false;
@@ -34,9 +34,9 @@ namespace station1.Forms
             InitializeComponent();
             this.richTextBox_logger.ReadOnly = true;
             log = new Logger(richTextBox_logger);
-            sampleQueue = new ConcurrentQueue<AudioData>();
-            tcpServer = new TcpServer(log, sampleQueue);
-            pdmPlotter = new PdmPlotter(formsPlot_pdm, sampleQueue);
+            //sampleQueue = new ConcurrentQueue<AudioData>();
+            tcpServer = new TcpServer(log);
+            pdmPlotter = new PdmPlotter(formsPlot_pdm, tcpServer.connectedClients/*, sampleQueue*/);
         }
 
         private void button_exit_Click(object sender, EventArgs e)
@@ -82,9 +82,7 @@ namespace station1.Forms
 
         private void button_send_Click(object sender, EventArgs e)
         {
-            tcpServer.SendTcp(textBox_input.Text + "\n");
-            /* tmp */
-            //pdmPlotter.Plot();
+            //tcpServer.SendTcp(textBox_input.Text + "\n");
 
         }
 
