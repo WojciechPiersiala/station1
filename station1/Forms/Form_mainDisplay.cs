@@ -36,7 +36,7 @@ namespace station1.Forms
             log = new Logger(richTextBox_logger);
             //sampleQueue = new ConcurrentQueue<AudioData>();
             tcpServer = new TcpServer(log);
-            pdmPlotter = new PdmPlotter(formsPlot_pdm, tcpServer.connectedClients/*, sampleQueue*/);
+            pdmPlotter = new PdmPlotter(formsPlot_pdm, tcpServer.connectedClients, log/*, sampleQueue*/);
         }
 
         private void button_exit_Click(object sender, EventArgs e)

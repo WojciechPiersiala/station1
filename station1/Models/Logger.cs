@@ -64,5 +64,22 @@ namespace station1.Models
         {
             Log(input, Color.Orange);
         }
+
+
+
+        public void Log_I(string tag, string input)
+        {
+            Log(tag + ":   " + input, Color.Black);
+        }
+        public void Log_E(string tag, string input)
+        {
+            Log(tag + ":   " + input, Color.Red);
+        }
+        public void Log_W(string tag, string input)
+        {
+            Log(tag + ":   " + input, Color.Orange);
+        }
+
+
     }
 }

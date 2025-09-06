@@ -70,16 +70,8 @@ namespace station1.Models
                     connectedClients.Add(clientChannel);
 
                     string clientIp = ((IPEndPoint)clientChannel.tcpClient.Client.RemoteEndPoint).Address.ToString();
-                    log.Log_I($"Client with id: {clientChannel.id} and ip: {clientChannel.tcpClient}added to the queue. Number of connected clients: {connectedClients.Count}");
+                    log.Log_I($"Client with id: {clientChannel.id} and ip: {clientIp} added to the queue. Number of connected clients: {connectedClients.Count}");
 
-                    //if (!addRes)
-                    //{
-                    //    log.Log_E("Error adding new client to the list of connected clients");
-                    //}else
-                    //{
-                    //    string clientIp = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString();
-                    //    log.Log_I($"Client with ip: {clientIp} added to the queue. Number of connected clients: {connectedClients.Count}");
-                    //}
                     _ = Task.Run(() => HandleClient(clientChannel, clcTok));
                 } // server while loop
             }
@@ -123,9 +115,6 @@ namespace station1.Models
 
         public async Task HandleClient(ClientChannel clientChannel, CancellationToken clcTok)
         {
-            // add queue for this client
-            //connectedClients.TryAdd(clientChannel., newSampleQueue);
-
             while (!clcTok.IsCancellationRequested)
             {
                 NetworkStream stream = clientChannel.tcpClient.GetStream();
@@ -172,11 +161,6 @@ namespace station1.Models
                     clientChannel.sampleQueue.Enqueue(samples);
                 }
             } // connection while loop
-
-            //if (clcTok.IsCancellationRequested)
-            //{
-            //    connectedClients.TryRemove(currentClient, out _);
-            //}
         }
     }
 }
