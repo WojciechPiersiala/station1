@@ -36,6 +36,8 @@
             formsPlot_pdm = new ScottPlot.WinForms.FormsPlot();
             splitContainer1 = new SplitContainer();
             panel1 = new Panel();
+            button_synch = new Button();
+            button_export = new Button();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
@@ -81,9 +83,8 @@
             textBox_input.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textBox_input.Location = new Point(203, 7);
             textBox_input.Name = "textBox_input";
-            textBox_input.Size = new Size(564, 27);
+            textBox_input.Size = new Size(481, 27);
             textBox_input.TabIndex = 5;
-            textBox_input.TextChanged += textBox_input_TextChanged;
             // 
             // richTextBox_logger
             // 
@@ -124,6 +125,8 @@
             // 
             // panel1
             // 
+            panel1.Controls.Add(button_export);
+            panel1.Controls.Add(button_synch);
             panel1.Controls.Add(button_start);
             panel1.Controls.Add(button_send);
             panel1.Controls.Add(textBox_input);
@@ -134,6 +137,28 @@
             panel1.Size = new Size(1023, 39);
             panel1.TabIndex = 9;
             // 
+            // button_synch
+            // 
+            button_synch.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            button_synch.Location = new Point(790, 6);
+            button_synch.Name = "button_synch";
+            button_synch.Size = new Size(94, 29);
+            button_synch.TabIndex = 6;
+            button_synch.Text = "Synch";
+            button_synch.UseVisualStyleBackColor = true;
+            button_synch.Click += button_synch_Click;
+            // 
+            // button_export
+            // 
+            button_export.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            button_export.Location = new Point(690, 7);
+            button_export.Name = "button_export";
+            button_export.Size = new Size(94, 29);
+            button_export.TabIndex = 8;
+            button_export.Text = "Export";
+            button_export.UseVisualStyleBackColor = true;
+            button_export.Click += button_export_Click;
+            // 
             // Form_mainDisplay
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -143,7 +168,6 @@
             Controls.Add(splitContainer1);
             Name = "Form_mainDisplay";
             Text = "  ";
-            Load += Form_mainDisplay_Load;
             splitContainer1.Panel1.ResumeLayout(false);
             splitContainer1.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)splitContainer1).EndInit();
@@ -163,5 +187,7 @@
         private ScottPlot.WinForms.FormsPlot formsPlot_pdm;
         private SplitContainer splitContainer1;
         private Panel panel1;
+        private Button button_synch;
+        private Button button_export;
     }
 }

@@ -3,10 +3,12 @@ using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -18,20 +20,17 @@ namespace station1.Models
 {
     internal class TcpServer
     {
-        private Logger log;
+        //private Logger log;
+        Stopwatch timer; // main timer
         private TcpListener server;
+        private string tag = "tcpServer";
         public List<ClientChannel> connectedClients { get; } = new(); // handle multiple clients
-            //= new ConcurrentDictionary<TcpClient, ConcurrentQueue<AudioData>>();
-        //private ConcurrentQueue<AudioData> sampleQueue;
         private const int headerLen = 8;
         private const bool isLogSamples = false;
         private const bool isLogAudioInfo = false;
-
-        // default constructor
-        public TcpServer(Logger log)
+        public TcpServer()
         {
-            this.log = log;
-            //this.sampleQueue = sampleQueue;
+            timer = Stopwatch.StartNew();
             printIp();
         }
 
@@ -43,10 +42,37 @@ namespace station1.Models
             IPAddress[] ipAddresses = Dns.GetHostAddresses(hostName);
             foreach (IPAddress ip in ipAddresses)
             {
-                log.Log_I($"IP Address: {ip}");
+                Logger.I(tag,$"IP Address: {ip}");
             }
 
         }
+
+        public async Task MonitorConnections(CancellationToken clcTok)
+        {
+            while (!clcTok.IsCancellationRequested)
+            {
+                foreach (var cc in connectedClients)
+                {
+                    double readTime = (timer.ElapsedMilliseconds - cc.lastReadTime);
+                    if(readTime > 1000)
+                    {
+                        Logger.E(tag, $"Client with ID: {cc.id} didn't respond for more than {readTime}. Removing the client...");
+                        cc.clcTokenSrc.Cancel();
+                        TcpClient tcpClient = cc.tcpClient;
+                        Stream stream = tcpClient.GetStream();
+ 
+                        stream?.Close();
+                        stream?.Dispose();
+                        tcpClient?.Close();
+                        tcpClient?.Dispose();
+                        connectedClients.Remove(cc);
+                        break; // break foreach to avoid collection modification error
+                    }
+                }
+                await Task.Delay(1000, clcTok); //refresh rate
+            }
+        }
+
 
         public async Task ListenTcp(CancellationToken clcTok)
         {
@@ -56,32 +82,33 @@ namespace station1.Models
                 /* start server */
                 var ipEndPoint = new IPEndPoint(IPAddress.Any, 5050);
                 server = new TcpListener(ipEndPoint);
-                log.Log_I("Listener starting ...");
+                Logger.I(tag,$"Listener starting ...");
                 server.Start();
-                log.Log_I($"Listener started: {ipEndPoint.Address}");
+                Logger.I(tag,$"Listener started: {ipEndPoint.Address}");
 
                 while (!clcTok.IsCancellationRequested)
                 {
-                    log.Log_I("Waiting for connection ...");
+                    Logger.I(tag,$"Waiting for connection ...");
                     TcpClient newTcpClient = await server.AcceptTcpClientAsync(clcTok);
-                    log.Log_I("Connected!");
-                    //var newSampleQueue = new ConcurrentQueue<AudioData>();
+                    Logger.I(tag,$"Connected!");
                     var clientChannel = new ClientChannel(connectedClients.Count + 1, newTcpClient);
                     connectedClients.Add(clientChannel);
 
                     string clientIp = ((IPEndPoint)clientChannel.tcpClient.Client.RemoteEndPoint).Address.ToString();
-                    log.Log_I($"Client with id: {clientChannel.id} and ip: {clientIp} added to the queue. Number of connected clients: {connectedClients.Count}");
+                    Logger.I(tag,$"Client with id: {clientChannel.id} and ip: {clientIp} added to the queue. Number of connected clients: {connectedClients.Count}");
+                    clientChannel.clcTokenSrc = new CancellationTokenSource();
 
-                    _ = Task.Run(() => HandleClient(clientChannel, clcTok));
+                    _ = Task.Run(() => HandleClient(clientChannel, clientChannel.clcTokenSrc.Token));
                 } // server while loop
+
             }
             catch (ObjectDisposedException)
             {
-                log.Log_W("Server stopped while waiting for a client. Socket was closed.");
+                Logger.W("Server stopped while waiting for a client. Socket was closed.");
             }
             catch (Exception e)
             {
-                log.Log_E($"Server exception : {e.Message}");
+                Logger.E($"Server exception : {e.Message}");
             }
             finally
             {
@@ -97,34 +124,37 @@ namespace station1.Models
                 NetworkStream stream = currentClient.GetStream();
                 try
                 {
+                    cc.clcTokenSrc.Cancel();
                     stream?.Close();
                     stream?.Dispose();
                     currentClient?.Close();
                     currentClient?.Dispose();
-                    log.Log_I("Server stopped");
+                    Logger.I(tag,$"Server stopped");
                 }
                 catch (Exception e)
                 {
-                    log.Log_E($"Error while stopping the tcp server: {e.Message}");
+                    Logger.E($"Error while stopping the tcp server: {e.Message}");
                 }
-                server?.Stop();
-                log.Log_I("Server stopped");
             }
+            server?.Stop();
+            Logger.I(tag,$"Server stopped");
+            connectedClients.Clear();
         }
 
 
         public async Task HandleClient(ClientChannel clientChannel, CancellationToken clcTok)
         {
+            Logger.I(tag, $"tcp client task with id {clientChannel.id} started");
+            NetworkStream stream = clientChannel.tcpClient.GetStream();
             while (!clcTok.IsCancellationRequested)
-            {
-                NetworkStream stream = clientChannel.tcpClient.GetStream();
-
+            { 
                 /* Read header */
                 byte[] headerBytes = new byte[headerLen];
                 int headerRead = 0;
                 while (headerRead < headerLen)
                 {
                     int read = stream.Read(headerBytes, headerRead, headerLen - headerRead);
+                    clientChannel.lastReadTime = timer.ElapsedMilliseconds;
                     if (read == 0) throw new IOException("Connection closed before header received");
                     headerRead += read;
                 }
@@ -136,7 +166,7 @@ namespace station1.Models
                 {
                     if (isLogAudioInfo)
                     {
-                        log.Log_I($"{messageTypeChar}: {timestamp}");
+                        Logger.I(tag,$"{messageTypeChar}: {timestamp}");
                     }
 
 
@@ -161,6 +191,8 @@ namespace station1.Models
                     clientChannel.sampleQueue.Enqueue(samples);
                 }
             } // connection while loop
+            Logger.I(tag, $"tcp client task with id {clientChannel.id} cancelled");
         }
-    }
-}
+
+    }// class
+}// namespace

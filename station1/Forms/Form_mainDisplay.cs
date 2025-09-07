@@ -1,4 +1,7 @@
-﻿using System;
+﻿using HarfBuzzSharp;
+using Microsoft.VisualBasic.Logging;
+using station1.Models;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -9,15 +12,14 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.VisualBasic.Logging;
-using station1.Models;
 
 
 namespace station1.Forms
 {
     public partial class Form_mainDisplay : FormWithRef
     {
-        private Logger log;
+        private string tag = "mainDisplay";
+        //private Logger log;
         private TcpServer tcpServer;
         private PdmPlotter pdmPlotter;
 
@@ -33,10 +35,11 @@ namespace station1.Forms
             this.FormBorderStyle = FormBorderStyle.None;
             InitializeComponent();
             this.richTextBox_logger.ReadOnly = true;
-            log = new Logger(richTextBox_logger);
+            //log = new Logger(richTextBox_logger);
             //sampleQueue = new ConcurrentQueue<AudioData>();
-            tcpServer = new TcpServer(log);
-            pdmPlotter = new PdmPlotter(formsPlot_pdm, tcpServer.connectedClients, log/*, sampleQueue*/);
+            Logger.Initialize(richTextBox_logger);
+            tcpServer = new TcpServer();
+            pdmPlotter = new PdmPlotter(formsPlot_pdm, tcpServer.connectedClients/*, sampleQueue*/);
         }
 
         private void button_exit_Click(object sender, EventArgs e)
@@ -54,10 +57,13 @@ namespace station1.Forms
                 tmpButton.Text = "Stop";
 
                 cancelTcp = new CancellationTokenSource();
-                log.Log_I("Tcp server thread started");
+                Logger.I(tag, $"Tcp server thread started");
                 Task taskTcp = Task.Run(() => tcpServer.ListenTcp(cancelTcp.Token));
+                Logger.I(tag, $"Tcp server monitor connections thread started");
+                Task taskTcpMon = Task.Run(() => tcpServer.MonitorConnections(cancelTcp.Token));
+
                 cancelPlot = new CancellationTokenSource();
-                log.Log_I("Plotter thread started");
+                Logger.I(tag, $"Plotter thread started");
                 Task taskPlot = Task.Run(() => pdmPlotter.Plot(cancelPlot.Token));
 
             }
@@ -65,10 +71,11 @@ namespace station1.Forms
             {
                 isTcpListening = false;
                 tmpButton.Text = "Start";
-                tcpServer.StopTcp();
 
                 cancelTcp.Cancel();
                 cancelPlot.Cancel();
+
+                tcpServer.StopTcp();
             }
         }
 
@@ -86,25 +93,15 @@ namespace station1.Forms
 
         }
 
-        private void tableLayoutPanel1_Paint(object sender, PaintEventArgs e)
-        {
 
+        private void button_synch_Click(object sender, EventArgs e)
+        {
+            pdmPlotter.Synch();
         }
 
-        private void Form_mainDisplay_Load(object sender, EventArgs e)
+        private void button_export_Click(object sender, EventArgs e)
         {
-
+            pdmPlotter.ExportData();
         }
-
-        private void formsPlot_pdm_Load(object sender, EventArgs e)
-        {
-
-        }
-
-        private void textBox_input_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
     }
 }

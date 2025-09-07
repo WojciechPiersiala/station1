@@ -9,10 +9,24 @@ namespace station1.Models
     internal class Logger
     {
         private RichTextBox textBoxRef;
+        private static volatile Logger? instance;
         public Logger(RichTextBox textBoxRef)
         {
             this.textBoxRef = textBoxRef;
         }
+        public static void Initialize(RichTextBox textBox)
+        {
+            instance = new Logger(textBox);
+        }
+
+        public static void I(string input) => instance?.Log_I(input);
+        public static void W(string input) => instance?.Log_W(input);
+        public static void E(string input) => instance?.Log_E(input);
+        public static void I(string tag, string input) => instance?.Log_I(tag, input);
+        public static void W(string tag, string input) => instance?.Log_W(tag, input);
+        public static void E(string tag, string input) => instance?.Log_E(tag, input);
+
+
         private void Log(string input, Color color)
         {
             if (textBoxRef.InvokeRequired)

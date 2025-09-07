@@ -11,10 +11,5 @@ namespace station1.Models
     public class FormWithRef : Form
     {
         public Form_main MainFormReference { get; set; }
-
-        //public FormWithRef()
-        //{
-
-        //}
     }
 }
