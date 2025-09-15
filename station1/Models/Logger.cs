@@ -41,9 +41,9 @@ namespace station1.Models
                 AppendClorLine(input, color);
             }
 
-            if(color == Color.Yellow)
+            if(color == Color.Orange)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.ForegroundColor = ConsoleColor.DarkYellow;
             }
             else if(color == Color.Red)
             {

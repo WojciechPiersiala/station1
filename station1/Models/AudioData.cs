@@ -11,9 +11,9 @@ namespace station1.Models
         public int length;
         public short[] samples; 
         public int timestamp;
-        public AudioData(int timestamp)     
+        public AudioData(int timestamp, int length)
         {   
-            this.length = 1024;
+            this.length = length;
             this.samples = new short[length];
             this.timestamp = timestamp;
         }

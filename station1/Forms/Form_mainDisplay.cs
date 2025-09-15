@@ -38,14 +38,21 @@ namespace station1.Forms
             //log = new Logger(richTextBox_logger);
             //sampleQueue = new ConcurrentQueue<AudioData>();
             Logger.Initialize(richTextBox_logger);
-            tcpServer = new TcpServer();
-            pdmPlotter = new PdmPlotter(formsPlot_pdm, tcpServer.connectedClients/*, sampleQueue*/);
+
+            /* Audio and plotter setup */
+            int audioLen = 6144; // audio len in bytesmust be the same as in the client
+            int audioCunks = 2; // number of audio chunks to store in the plotter
+            int samplingRate = 52000; //Hz mic frequency
+
+            tcpServer = new TcpServer(audioLen);
+            pdmPlotter = new PdmPlotter(formsPlot_pdm, tcpServer.connectedClients, audioLen, audioCunks, samplingRate);
         }
 
         private void button_exit_Click(object sender, EventArgs e)
         {
             Form_menu form_main = new Form_menu();
             MainFormReference.ChangeForm(form_main);
+            Application.Exit();
         }
 
         private void button_start_Click(object sender, EventArgs e)
@@ -90,6 +97,14 @@ namespace station1.Forms
         private void button_send_Click(object sender, EventArgs e)
         {
             //tcpServer.SendTcp(textBox_input.Text + "\n");
+            string input = textBox_input.Text;
+
+            string str2look = "Channel";
+            bool hasChanel = input.Contains(str2look, StringComparison.OrdinalIgnoreCase); // true
+            if (hasChanel)
+            {
+                pdmPlotter.changeTimeOffset(input, str2look);
+            }
 
         }
 
@@ -97,11 +112,22 @@ namespace station1.Forms
         private void button_synch_Click(object sender, EventArgs e)
         {
             pdmPlotter.Synch();
+            button_ExactSynch.Enabled = true;
         }
 
         private void button_export_Click(object sender, EventArgs e)
         {
             pdmPlotter.ExportData();
+        }
+
+        private void textBox_input_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button_ExactSynch_Click(object sender, EventArgs e)
+        {
+            pdmPlotter.ExactSynch();
         }
     }
 }

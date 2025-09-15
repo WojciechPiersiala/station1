@@ -20,6 +20,10 @@ namespace station1.Models
 {
     internal class TcpServer
     {
+        //private int audioLen = 2048;
+        private int audioLen;
+        //private int audioLenSamples;
+        private const double clientTimeout  = 10000.0; // client timeout in ms
         //private Logger log;
         Stopwatch timer; // main timer
         private TcpListener server;
@@ -28,8 +32,10 @@ namespace station1.Models
         private const int headerLen = 8;
         private const bool isLogSamples = false;
         private const bool isLogAudioInfo = false;
-        public TcpServer()
+        public TcpServer(int audioLen)
         {
+            this.audioLen = audioLen;
+            //this.audioLenSamples = this.audioLen*2; // 2 bytes per sample (16 bit)
             timer = Stopwatch.StartNew();
             printIp();
         }
@@ -54,15 +60,21 @@ namespace station1.Models
                 foreach (var cc in connectedClients)
                 {
                     double readTime = (timer.ElapsedMilliseconds - cc.lastReadTime);
-                    if(readTime > 1000)
+                    if(readTime > clientTimeout)
                     {
-                        Logger.E(tag, $"Client with ID: {cc.id} didn't respond for more than {readTime}. Removing the client...");
+                        Logger.E(tag, $"Timeout. Client with ID: {cc.id} didn't respond for more than {readTime}. Removing the client...");
                         cc.clcTokenSrc.Cancel();
                         TcpClient tcpClient = cc.tcpClient;
-                        Stream stream = tcpClient.GetStream();
- 
-                        stream?.Close();
-                        stream?.Dispose();
+
+                        if (tcpClient?.Connected == true)
+                        {
+                            using (Stream stream = tcpClient.GetStream())
+                            {
+                                stream?.Close();
+                                stream?.Dispose();
+                            }
+                        }
+
                         tcpClient?.Close();
                         tcpClient?.Dispose();
                         connectedClients.Remove(cc);
@@ -91,7 +103,7 @@ namespace station1.Models
                     Logger.I(tag,$"Waiting for connection ...");
                     TcpClient newTcpClient = await server.AcceptTcpClientAsync(clcTok);
                     Logger.I(tag,$"Connected!");
-                    var clientChannel = new ClientChannel(connectedClients.Count + 1, newTcpClient);
+                    var clientChannel = new ClientChannel(newTcpClient);
                     connectedClients.Add(clientChannel);
 
                     string clientIp = ((IPEndPoint)clientChannel.tcpClient.Client.RemoteEndPoint).Address.ToString();
@@ -171,10 +183,10 @@ namespace station1.Models
 
 
                     /* Read audio samples */
-                    int audioLen = 2048; // audio data length
+                    //int audioLen = 2048; // audio data length
                     byte[] audioBytes = new byte[audioLen];
                     int audioRead = 0;
-                    AudioData samples = new AudioData(timestamp);
+                    AudioData samples = new AudioData(timestamp, audioLen/2);
                     while (audioRead < audioLen)
                     {
                         int read = stream.Read(audioBytes, audioRead, audioLen - audioRead);
