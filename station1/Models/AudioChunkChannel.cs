@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace station1.Models
 {
-    internal class ClientChannel
+    internal class AudioChunkChannel
     {
         private static string tag = "ClientChannel";
         public int audioLength = 0; // length of audio data in bytes
@@ -20,10 +20,10 @@ namespace station1.Models
         public bool synchronise = false;
         public int id { get; }
         public TcpClient tcpClient { get; }
-        public ConcurrentQueue<AudioData> sampleQueue { get; } = new();
-        public  CancellationTokenSource clcTokenSrc;
+        public ConcurrentQueue<AudioChunk> sampleQueue { get; } = new();
+        public CancellationTokenSource clcTokenSrc;
         public long lastReadTime;
-        public ClientChannel(TcpClient tcpClient)
+        public AudioChunkChannel(TcpClient tcpClient)
         {
             this.tcpClient = tcpClient;
             string clientIp = ((IPEndPoint)this.tcpClient.Client.RemoteEndPoint).Address.ToString();

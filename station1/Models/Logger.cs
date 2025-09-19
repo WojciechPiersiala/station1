@@ -27,6 +27,9 @@ namespace station1.Models
         public static void E(string tag, string input) => instance?.Log_E(tag, input);
 
 
+        public static void S(string tag, string input) => instance?.Log_S(tag, input);
+
+
         private void Log(string input, Color color)
         {
             if (textBoxRef.InvokeRequired)
@@ -41,13 +44,13 @@ namespace station1.Models
                 AppendClorLine(input, color);
             }
 
-            if(color == Color.Orange)
+            if (color == Color.Orange)
             {
                 Console.ForegroundColor = ConsoleColor.DarkYellow;
             }
-            else if(color == Color.Red)
+            else if (color == Color.Red)
             {
-                Console.ForegroundColor = ConsoleColor.Red; 
+                Console.ForegroundColor = ConsoleColor.Red;
             }
             else
             {
@@ -94,6 +97,10 @@ namespace station1.Models
             Log(tag + ":   " + input, Color.Orange);
         }
 
+        public void Log_S(string tag, string input)
+        {
+            Log(tag + ":   " + input, Color.Blue);
+        }
 
     }
 }

@@ -32,9 +32,11 @@
             button_start = new Button();
             button_send = new Button();
             textBox_input = new TextBox();
-            richTextBox_logger = new RichTextBox();
             formsPlot_pdm = new ScottPlot.WinForms.FormsPlot();
             splitContainer1 = new SplitContainer();
+            splitContainer2 = new SplitContainer();
+            richTextBox_logger = new RichTextBox();
+            formsPlot_timeShifts = new ScottPlot.WinForms.FormsPlot();
             panel1 = new Panel();
             button_ExactSynch = new Button();
             button_export = new Button();
@@ -43,6 +45,10 @@
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
             splitContainer1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)splitContainer2).BeginInit();
+            splitContainer2.Panel1.SuspendLayout();
+            splitContainer2.Panel2.SuspendLayout();
+            splitContainer2.SuspendLayout();
             panel1.SuspendLayout();
             SuspendLayout();
             // 
@@ -90,16 +96,6 @@
             textBox_input.Text = "Channel1 10000";
             textBox_input.TextChanged += textBox_input_TextChanged;
             // 
-            // richTextBox_logger
-            // 
-            richTextBox_logger.Dock = DockStyle.Fill;
-            richTextBox_logger.Location = new Point(0, 0);
-            richTextBox_logger.Name = "richTextBox_logger";
-            richTextBox_logger.Size = new Size(1061, 218);
-            richTextBox_logger.TabIndex = 7;
-            richTextBox_logger.Text = "";
-            richTextBox_logger.TextChanged += richTextBox_logger_TextChanged;
-            // 
             // formsPlot_pdm
             // 
             formsPlot_pdm.DisplayScale = 1.25F;
@@ -122,10 +118,46 @@
             // 
             // splitContainer1.Panel2
             // 
-            splitContainer1.Panel2.Controls.Add(richTextBox_logger);
+            splitContainer1.Panel2.Controls.Add(splitContainer2);
             splitContainer1.Size = new Size(1061, 437);
             splitContainer1.SplitterDistance = 215;
             splitContainer1.TabIndex = 8;
+            // 
+            // splitContainer2
+            // 
+            splitContainer2.Dock = DockStyle.Fill;
+            splitContainer2.Location = new Point(0, 0);
+            splitContainer2.Name = "splitContainer2";
+            // 
+            // splitContainer2.Panel1
+            // 
+            splitContainer2.Panel1.Controls.Add(richTextBox_logger);
+            // 
+            // splitContainer2.Panel2
+            // 
+            splitContainer2.Panel2.Controls.Add(formsPlot_timeShifts);
+            splitContainer2.Size = new Size(1061, 218);
+            splitContainer2.SplitterDistance = 335;
+            splitContainer2.TabIndex = 0;
+            // 
+            // richTextBox_logger
+            // 
+            richTextBox_logger.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            richTextBox_logger.Location = new Point(12, 3);
+            richTextBox_logger.Name = "richTextBox_logger";
+            richTextBox_logger.Size = new Size(320, 170);
+            richTextBox_logger.TabIndex = 7;
+            richTextBox_logger.Text = "";
+            richTextBox_logger.TextChanged += richTextBox_logger_TextChanged;
+            // 
+            // formsPlot_timeShifts
+            // 
+            formsPlot_timeShifts.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            formsPlot_timeShifts.DisplayScale = 1.25F;
+            formsPlot_timeShifts.Location = new Point(3, 3);
+            formsPlot_timeShifts.Name = "formsPlot_timeShifts";
+            formsPlot_timeShifts.Size = new Size(707, 170);
+            formsPlot_timeShifts.TabIndex = 0;
             // 
             // panel1
             // 
@@ -189,6 +221,10 @@
             splitContainer1.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)splitContainer1).EndInit();
             splitContainer1.ResumeLayout(false);
+            splitContainer2.Panel1.ResumeLayout(false);
+            splitContainer2.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)splitContainer2).EndInit();
+            splitContainer2.ResumeLayout(false);
             panel1.ResumeLayout(false);
             panel1.PerformLayout();
             ResumeLayout(false);
@@ -200,12 +236,14 @@
         private Button button_start;
         private Button button_send;
         private TextBox textBox_input;
-        private RichTextBox richTextBox_logger;
         private ScottPlot.WinForms.FormsPlot formsPlot_pdm;
         private SplitContainer splitContainer1;
         private Panel panel1;
         private Button button_synch;
         private Button button_export;
         private Button button_ExactSynch;
+        private RichTextBox richTextBox_logger;
+        private SplitContainer splitContainer2;
+        private ScottPlot.WinForms.FormsPlot formsPlot_timeShifts;
     }
 }

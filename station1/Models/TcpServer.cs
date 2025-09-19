@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualBasic.Logging;
 using SkiaSharp;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -21,20 +22,20 @@ namespace station1.Models
     internal class TcpServer
     {
         //private int audioLen = 2048;
-        private int audioLen;
+        //private int audioLen;
         //private int audioLenSamples;
-        private const double clientTimeout  = 10000.0; // client timeout in ms
+        private const double clientTimeout = 10000.0; // client timeout in ms
         //private Logger log;
         Stopwatch timer; // main timer
         private TcpListener server;
         private string tag = "tcpServer";
-        public List<ClientChannel> connectedClients { get; } = new(); // handle multiple clients
-        private const int headerLen = 8;
+        public List<AudioChunkChannel> connectedClients { get; } = new(); // handle multiple clients
+        private const int headerLen = 9;
         private const bool isLogSamples = false;
         private const bool isLogAudioInfo = false;
-        public TcpServer(int audioLen)
+        public TcpServer(/*int audioLen*/)
         {
-            this.audioLen = audioLen;
+            //this.audioLen = audioLen;
             //this.audioLenSamples = this.audioLen*2; // 2 bytes per sample (16 bit)
             timer = Stopwatch.StartNew();
             printIp();
@@ -48,7 +49,7 @@ namespace station1.Models
             IPAddress[] ipAddresses = Dns.GetHostAddresses(hostName);
             foreach (IPAddress ip in ipAddresses)
             {
-                Logger.I(tag,$"IP Address: {ip}");
+                Logger.I(tag, $"IP Address: {ip}");
             }
 
         }
@@ -60,7 +61,7 @@ namespace station1.Models
                 foreach (var cc in connectedClients)
                 {
                     double readTime = (timer.ElapsedMilliseconds - cc.lastReadTime);
-                    if(readTime > clientTimeout)
+                    if (readTime > clientTimeout)
                     {
                         Logger.E(tag, $"Timeout. Client with ID: {cc.id} didn't respond for more than {readTime}. Removing the client...");
                         cc.clcTokenSrc.Cancel();
@@ -88,26 +89,26 @@ namespace station1.Models
 
         public async Task ListenTcp(CancellationToken clcTok)
         {
-            server = null; 
+            server = null;
             try
             {
                 /* start server */
                 var ipEndPoint = new IPEndPoint(IPAddress.Any, 5050);
                 server = new TcpListener(ipEndPoint);
-                Logger.I(tag,$"Listener starting ...");
+                Logger.I(tag, $"Listener starting ...");
                 server.Start();
-                Logger.I(tag,$"Listener started: {ipEndPoint.Address}");
+                Logger.I(tag, $"Listener started: {ipEndPoint.Address}");
 
                 while (!clcTok.IsCancellationRequested)
                 {
-                    Logger.I(tag,$"Waiting for connection ...");
+                    Logger.I(tag, $"Waiting for connection ...");
                     TcpClient newTcpClient = await server.AcceptTcpClientAsync(clcTok);
-                    Logger.I(tag,$"Connected!");
-                    var clientChannel = new ClientChannel(newTcpClient);
+                    Logger.I(tag, $"Connected!");
+                    var clientChannel = new AudioChunkChannel(newTcpClient);
                     connectedClients.Add(clientChannel);
 
                     string clientIp = ((IPEndPoint)clientChannel.tcpClient.Client.RemoteEndPoint).Address.ToString();
-                    Logger.I(tag,$"Client with id: {clientChannel.id} and ip: {clientIp} added to the queue. Number of connected clients: {connectedClients.Count}");
+                    Logger.I(tag, $"Client with id: {clientChannel.id} and ip: {clientIp} added to the queue. Number of connected clients: {connectedClients.Count}");
                     clientChannel.clcTokenSrc = new CancellationTokenSource();
 
                     _ = Task.Run(() => HandleClient(clientChannel, clientChannel.clcTokenSrc.Token));
@@ -128,6 +129,7 @@ namespace station1.Models
             }
         }
 
+
         public void StopTcp()
         {
             foreach (var cc in connectedClients)
@@ -141,7 +143,7 @@ namespace station1.Models
                     stream?.Dispose();
                     currentClient?.Close();
                     currentClient?.Dispose();
-                    Logger.I(tag,$"Server stopped");
+                    Logger.I(tag, $"Server stopped");
                 }
                 catch (Exception e)
                 {
@@ -149,17 +151,17 @@ namespace station1.Models
                 }
             }
             server?.Stop();
-            Logger.I(tag,$"Server stopped");
+            Logger.I(tag, $"Server stopped");
             connectedClients.Clear();
         }
 
 
-        public async Task HandleClient(ClientChannel clientChannel, CancellationToken clcTok)
+        public async Task HandleClient(AudioChunkChannel clientChannel, CancellationToken clcTok)
         {
             Logger.I(tag, $"tcp client task with id {clientChannel.id} started");
             NetworkStream stream = clientChannel.tcpClient.GetStream();
             while (!clcTok.IsCancellationRequested)
-            { 
+            {
                 /* Read header */
                 byte[] headerBytes = new byte[headerLen];
                 int headerRead = 0;
@@ -170,7 +172,11 @@ namespace station1.Models
                     if (read == 0) throw new IOException("Connection closed before header received");
                     headerRead += read;
                 }
-                int timestamp = BitConverter.ToInt32(headerBytes, 1);
+                //int timestamp = BitConverter.ToInt32(headerBytes, 1);
+                ////long timestamp = BinaryPrimitives.ReadInt64BigEndian(headerBytes.AsSpan(1, 8));
+                //char messageTypeChar = (char)headerBytes[0];
+
+                long timestampUs = BinaryPrimitives.ReadInt64LittleEndian(headerBytes.AsSpan(1, 8));
                 char messageTypeChar = (char)headerBytes[0];
 
 
@@ -178,18 +184,19 @@ namespace station1.Models
                 {
                     if (isLogAudioInfo)
                     {
-                        Logger.I(tag,$"{messageTypeChar}: {timestamp}");
+                        Logger.I(tag, $"{messageTypeChar}: {timestampUs}");
                     }
 
 
                     /* Read audio samples */
                     //int audioLen = 2048; // audio data length
-                    byte[] audioBytes = new byte[audioLen];
+                    byte[] audioBytes = new byte[Globals.AudioLen];
                     int audioRead = 0;
-                    AudioData samples = new AudioData(timestamp, audioLen/2);
-                    while (audioRead < audioLen)
+                    //AudioChunk samples = new AudioChunk(timestamp, Globals.AudioLen / 2);
+                    AudioChunk samples = new AudioChunk(timestampUs, Globals.AudioLen / 2);
+                    while (audioRead < Globals.AudioLen)
                     {
-                        int read = stream.Read(audioBytes, audioRead, audioLen - audioRead);
+                        int read = stream.Read(audioBytes, audioRead, Globals.AudioLen - audioRead);
                         if (read == 0) throw new IOException("Connection closed before audio received");
                         audioRead += read;
                     }

@@ -7,6 +7,7 @@ using ScottPlot.WinForms;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -22,139 +23,54 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace station1.Models
 {
-
     internal class PdmPlotter
     {
-        internal class AudioRecord
-        {
-            public int id = -1;
-            private double offsetY = 0;
-            private bool doSynch = true;
-            public double[] X;  // accumulated time in ms
-            public double[] Y;  // accumulated audio samples
-            private int chunkIdx = 0;
-            public AudioRecord(int id, int Capacity)
-            {
-                this.X = new double[Capacity];
-                this.Y = new double[Capacity];
+        private int activeClients = 0;
+        private bool initSynchDone = false;
+        private bool[] isChanOk = new bool[3];
+        private int tryCynchCount = 0;
+        //public static int samplingRate;
+        //public static int maxChunks; // 16 -> 1.04 s //16 old
+        //public static int audioLen;
+        //public static int SamplesPerChunk; // number of audio samples in a single chunk
+        //public static int Capacity;
+        public static double yLimMin;
+        public static double yLimMax;
 
-                this.id = id;
-            }
-
-
-            private void appendChunk(double[] xs, double[] ys)
-            {
-                int chunkSize = PdmPlotter.SamplesPerChunk;
-
-                if (xs.Length != chunkSize || ys.Length != chunkSize)
-                {
-                    Logger.E(tag, $"Unexpected chunk size: got {xs.Length}, expected {chunkSize}");
-                    throw new InvalidOperationException($"Unexpected chunk size: got {xs.Length}, expected {chunkSize}");
-                }
-                Array.Copy(ys, 0, Y, chunkIdx * chunkSize, chunkSize);
-                Array.Copy(xs, 0, X, chunkIdx * chunkSize, chunkSize);
-
-                chunkIdx = (chunkIdx + 1) % PdmPlotter.maxChunks;
-            }
-
-
-
-            public void appendData(ClientChannel clientChannel, double serverNowMs)
-            {
-                while (clientChannel.sampleQueue.TryDequeue(out AudioData samples))
-                {
-                    double packetStart_ms = ((double)samples.timestamp / 1000.0); //ms
-                    bool synchRequired = (clientChannel.offsetMs == null) || doSynch;
-                    if (synchRequired)
-                    {
-                        // synchronise time series 
-                        //new client offset is not assigned yet.
-                        Logger.I(tag, $"Initial Synchronising client: {clientChannel.id}");
-                        clientChannel.offsetMs = serverNowMs - packetStart_ms;
-                        doSynch = false;
-                    }
-                    double start_ms = (double)(packetStart_ms + clientChannel.offsetMs);
-
-                    double dt_ms = 1 / (double)samplingRate * 1000.0; // dt in ms
-                    double stop_ms = start_ms + (dt_ms * samples.length);
-
-                    double[] xs = Enumerable.Range(0, samples.length)
-                        .Select(i => start_ms + i * dt_ms)
-                        .ToArray();
-
-                    double[] ys = samples.samples.Select(s => (double)s - offsetY).ToArray();
-                    appendChunk(xs, ys);
-
-                    if (synchRequired) // normalize the data during synchronisation
-                    {
-                        double avgY = Y.Average();
-                        //if (Math.Abs(avgY) > 15)
-                         offsetY += Y.Average();
-                    }
-                }
-            }
-
-            public void Synch()
-            {
-                doSynch = true;
-            }
-
-            public void prepareData(ref FormsPlot formsPlotRef)
-            {
-                //Array.Sort(X, Y);
-                var scatter = formsPlotRef.Plot.Add.Scatter(this.X, this.Y);
-                scatter.LegendText = $"Client {this.id}";
-
-                switch (this.id)
-                {
-                    case 11:
-                        scatter.Color = new ScottPlot.Color(255, 0, 0); // Red
-                        break;
-                    case 12:
-                        scatter.Color = new ScottPlot.Color(0, 255, 0); // Green
-                        break;
-                    case 13:
-                        scatter.Color = new ScottPlot.Color(0, 0, 255); // Blue
-                        break;
-                    default:
-                        scatter.Color = new ScottPlot.Color(0, 0, 0); // Black
-                        break;
-
-                }
-                
-
-                // set the limits 
-                if (this.X.Last() > yLimMax)
-                    yLimMax = this.X.Max();
-
-                if (this.X.First() < yLimMin)
-                    yLimMin = this.X.Min();
-
-            }
-
-
-        }// AudioRecord class
-
-
-
+        public static double yLimMinShifts = 0;
+        public static double yLimMaxShifts = 1;
 
         private static string tag = "plotter";
-        public static double yLimMin = double.MaxValue;
-        public static double yLimMax = 0;
-        private static int samplingRate;
-        private static int maxChunks; // 16 -> 1.04 s //16 old
-        private static int audioLen;
-        private static int SamplesPerChunk; // number of audio samples in a single chunk
-        private static int Capacity;
+
         private static string exportCsvPaht = @"C:\Users\wp1\Desktop\Studia\magisterka\Acustic_source_detection\matlab\Data\";
         private Stopwatch stopWatch = Stopwatch.StartNew();
         private int countClients = 0;
         public FormsPlot formsPlotRef; // reference to windows form plot
-        private List<ClientChannel> clientsBuffer;
-        private ConcurrentDictionary<ClientChannel, AudioRecord> plotBuffer = new ();
+        public FormsPlot formsPlotTimeShiftsRef;
+        private List<AudioChunkChannel> clientsBuffer;
+        private ConcurrentDictionary<AudioChunkChannel, AudioRecord> plotBuffer = new();
         private bool doSynch = false;
 
-        public void changeTimeOffset(string input, string str2look)
+
+        public PdmPlotter(FormsPlot formsPlotTimeShiftsRef, FormsPlot formsPlotRef, List<AudioChunkChannel> clientsBuffer/*, int audioLen, int maxChunks, int samplingRate*/)
+        {
+            this.formsPlotTimeShiftsRef = formsPlotTimeShiftsRef;
+            this.formsPlotRef = formsPlotRef;
+            this.clientsBuffer = clientsBuffer;
+
+            //PdmPlotter.maxChunks = maxChunks;
+            //PdmPlotter.audioLen = audioLen;
+            //PdmPlotter.SamplesPerChunk = PdmPlotter.audioLen / 2; // number of audio samples in a single chunk
+            //PdmPlotter.Capacity = PdmPlotter.SamplesPerChunk * maxChunks;
+            //PdmPlotter.samplingRate = samplingRate;
+
+            PdmPlotter.yLimMin = double.MaxValue;
+            PdmPlotter.yLimMax = 0;
+        }
+
+
+
+        public void manuallyChangeTimeOffset(string input, string str2look)
         {
             int idx = str2look.Length;
             int startIdx = input.IndexOf(str2look, StringComparison.OrdinalIgnoreCase);
@@ -180,9 +96,9 @@ namespace station1.Models
                 return;
             }
 
-            double timeOffsetStrValMs = (double) timeOffsetStrValUs / 1000.0;
+            double timeOffsetStrValMs = (double)timeOffsetStrValUs / 1000.0;
             Logger.I(tag, $"Adding : {timeOffsetStrValMs} ms to channel {chanNum}");
-            if(plotBuffer.Count <= chanNum)
+            if (plotBuffer.Count <= chanNum)
             {
                 Logger.W(tag, $"No channel with number {chanNum} found");
                 return;
@@ -191,25 +107,10 @@ namespace station1.Models
         }
 
 
-        public PdmPlotter(FormsPlot formsPlotRef, List<ClientChannel> clientsBuffer, int audioLen, int maxChunks, int samplingRate)
-        {
-            this.formsPlotRef = formsPlotRef;
-            this.clientsBuffer = clientsBuffer;
-
-            PdmPlotter.maxChunks = maxChunks;
-            PdmPlotter.audioLen = audioLen;
-            PdmPlotter.SamplesPerChunk = PdmPlotter.audioLen / 2; // number of audio samples in a single chunk
-            PdmPlotter.Capacity = PdmPlotter.SamplesPerChunk * maxChunks;
-            PdmPlotter.samplingRate = samplingRate;
-        }
-
-        public void ExactSynch()
-        {
-            doSynch = true;
-        }
 
         public void Synch()
         {
+            initSynchDone = true;
             //doSynch = true;
             foreach (var it in plotBuffer)
                 it.Value.Synch();
@@ -226,7 +127,7 @@ namespace station1.Models
             {
                 Logger.W(tag, "No data to save to csv");
                 return;
-            }   
+            }
             List<string> lines = new();
 
 
@@ -239,10 +140,10 @@ namespace station1.Models
             string header = sbHeader.ToString();
             lines.Add(header);
 
-            for (int i = 0; i < Capacity; i++)
+            for (int i = 0; i < Globals.Capacity; i++)
             {
                 StringBuilder sb = new();
-                foreach(var s in snap)
+                foreach (var s in snap)
                 {
                     string timeSampe = s.X[i].ToString("R", inv);
                     string audioSample = s.Y[i].ToString("R", inv);
@@ -253,28 +154,186 @@ namespace station1.Models
                 lines.Add(sb.ToString());
 
             }
-            double  currTime = stopWatch.Elapsed.TotalMilliseconds;
+            double currTime = stopWatch.Elapsed.TotalMilliseconds;
             string path = exportCsvPaht + $"{currTime.ToString()}.csv";
             File.WriteAllLines(path, lines);
 
             Logger.I(tag, $"Exporting dataset: {header} to file {currTime.ToString()}.csv");
         }
 
+
+        public void startExactSynch() => doSynch = true;
+
+
+        private void countActiveClients()
+        {
+            int conCount = plotBuffer.Count;
+            if (conCount != countClients)
+            {
+                Logger.I(tag, $"Number of active clients changed from {countClients} to {conCount}");
+                countClients = conCount;
+                initSynchDone = false;
+            }
+        }
+
+
+        public void exactSynch(ref List<AudioChunkChannel> snap)
+        {
+            
+            if (!initSynchDone) return; // initial synch not done yet
+            bool logSynch = false;
+            //if (!doSynch) return; //don't do anything
+
+            double startSychMs = stopWatch.Elapsed.TotalMilliseconds;
+            var snapPltBuff = plotBuffer                   // one ordered snapshot
+                .OrderBy(kvp => kvp.Key.id)
+                .ToList();
+
+            if (plotBuffer.Count < 2)
+            {
+                if(logSynch) Logger.W(tag, $"Exact Synchronisation stopped, not enough chnnels, only{plotBuffer.Count} channels");
+                doSynch = false;
+                return;
+            }
+
+            //double serverNowMs = stopWatch.Elapsed.TotalMilliseconds;
+            if (logSynch) Logger.I(tag, $"Exact synchronisation Synchronising {snap.Count} channels");
+
+            int N = plotBuffer.Count;
+
+            //AudioRecord[] snappedCls = new AudioRecord[N];
+            //double[][] Tms = new double[N][];
+            //double[][] Y = new double[N][];
+            //for (int i = 0; i < N; i++)
+            //{
+            //    snappedCls[i] = pltBuffSnap[i];
+            //    Tms[i] = snappedCls[i].X;
+            //    Y[i] = snappedCls[i].Y;
+            //}
+
+
+            // Reference series
+            var (refChan, refRec) = (snapPltBuff[0].Key, snapPltBuff[0].Value);
+            var T0 = refRec.X;
+            var Y0 = refRec.Y;
+
+
+            //const double MaxtimeShift = 1;
+            bool allChannelsSynch = true;
+            bool CheckSynch = false;
+            for (int i = 1; i < N; i++) // aclulate correlation and applay time shift to each channel
+            {
+                if (isChanOk[i])
+                {
+                    //Logger.I(tag,$"Channel {snapPltBuff[i].Key.id} already synchronised");
+                    continue; // already ok  TODO: doesn't work
+                }
+                
+
+                var (chani, reci) = (snapPltBuff[i].Key, snapPltBuff[i].Value);   //the channel to update
+                var Ti = reci.X;
+                var Yi = reci.Y;
+                double maxLag = 1.0; //ms
+                if (doSynch) maxLag = 100000.0; //us
+
+                //Logger.I(tag, $"{isChanOk[0]}, {isChanOk[1]}, {isChanOk[2]}, {maxLag}");
+
+                double timeShift = AudioProcessing.findTimeShiftAsync(T0, Y0, Ti, Yi, maxLag);
+                if (double.IsNaN(timeShift))
+                {
+                    if (logSynch) Logger.W(tag, $"SYNCHRONISATION:     Could not calculate time shift for channel {chani.id} continuing to next channel");
+                    allChannelsSynch = false;
+                    continue;
+                }
+                else
+                {
+                    int timeStampSv = (int)(T0.Min()*1000.0); //ms to us
+                    int timeShiftSv = (int)(timeShift * 1000.0); //ms to us
+                    string toPlot = $"{chani.id}, {timeStampSv} us, {timeShiftSv} us";
+                    reci.updateShift(timeStampSv, timeShift);
+                    Logger.I(tag, toPlot);
+                    CheckSynch = true;
+                }
+
+                //var cc2 = plotBuffer.First(kvp => kvp.Value.id == snappedCls[i].id).Key;
+                
+
+
+                //// SYNCHRONISATION /////
+                if (!doSynch) continue; //don't do anything
+
+
+                //if (Math.Abs((double)(chani.offsetMs - timeShift)) < 10000)
+                //{
+                //    Logger.I(tag, $"SYNCHRONISATION:     Channel {chani.id} already synchronised");
+                //}
+
+                chani.offsetMs -= timeShift;
+                if (true) Logger.I(tag, $"SYNCHRONISATION:     Applied shift of {timeShift} ms to channel {chani.id}");
+                isChanOk[i] = true;
+                //if (Math.Abs(timeShift) <= 0.1) //ms
+                //{
+                //    //Applay     
+                //    Task.Delay(2000); // delay 2 seconds
+                //    isChanOk[i] = true;
+                //}
+                //else
+                //{
+                //    if (logSynch) Logger.W(tag, $"Calculated audio shift: {timeShift} ms is too high repeating synchronisation for client {chani.id}");
+                //}
+
+                allChannelsSynch = allChannelsSynch && isChanOk[i];
+
+            }// for loop
+
+            if (!doSynch) return; //don't do anything
+            doSynch = !allChannelsSynch;
+
+
+            if (allChannelsSynch)
+            {
+                double stopSychMs = stopWatch.Elapsed.TotalMilliseconds;
+                double synchTimeMs = stopSychMs - startSychMs;
+                Logger.S(tag, $"Synchronisation done took {synchTimeMs} ms");
+
+                for (int i = 0; i < N; i++)
+                {
+                    isChanOk[i] = false;
+                    var (chani, reci) = (snapPltBuff[i].Key, snapPltBuff[i].Value);   //the channel to update
+                    reci.clearShiftHistory();
+                }
+            }
+            //else
+            //{
+            //    if(CheckSynch) tryCynchCount++;
+            //    if(tryCynchCount >= 50) // gieve up after too many attempts
+            //    {
+            //        Logger.W(tag, $"Synchronisation failed after too many attempts, {tryCynchCount} attempts");
+            //        doSynch = false;
+            //        tryCynchCount = 0;
+            //    }
+            //}
+        }
+
+
+
         public async Task Plot(CancellationToken clcTok)
         {
+            formsPlotTimeShiftsRef.Plot.Axes.SetLimitsY(-Globals.MinValidSchiftUs, Globals.MinValidSchiftUs);
             formsPlotRef.Plot.Axes.SetLimitsY(-1000, 1000);
             Logger.I(tag, "Plotter started");
-            int conCountPrev= 0;
-            int repetitions = 0;
-            bool[] isChanOk = new bool[3];
+            //int conCountPrev = 0;
+            //int repetitions = 0;
+            bool firstRun = true;
             while (!clcTok.IsCancellationRequested)
             {
-                List<ClientChannel> snap; // snapshot of current clients
+                List<AudioChunkChannel> snap; // snapshot of current clients
                 // Ensure every current client has an AudioRecord
                 lock (clientsBuffer) snap = clientsBuffer.ToList();
                 foreach (var c in snap)
                 {
-                    plotBuffer.TryAdd(c, new AudioRecord(c.id, PdmPlotter.Capacity));
+                    plotBuffer.TryAdd(c, new AudioRecord(c.id, /*PdmPlotter.Capacity,*/ firstRun));
+                    firstRun = false;
                 }
 
                 foreach (var key in plotBuffer.Keys)
@@ -282,124 +341,61 @@ namespace station1.Models
                     if (!snap.Contains(key)) plotBuffer.TryRemove(key, out _);
                 }
 
+                countActiveClients();
+                exactSynch(ref snap);
+                
 
-                // calculate correlation 
-                if (doSynch)
-                {
-                    double startSychMs = stopWatch.Elapsed.TotalMilliseconds;
-                    var pltBuffSnap = plotBuffer
-                        .OrderBy(kvp => kvp.Key.id)   // stable order (dict is unordered)
-                        .Select(kvp => kvp.Value)
-                        .ToList();
-
-                    if (plotBuffer.Count < 2)
-                    {
-                        Logger.W(tag, $"Exact Synchronisation stopped, not enough chnnels, only{plotBuffer.Count} channels");
-                    }
-                    else
-                    {
-                        //double serverNowMs = stopWatch.Elapsed.TotalMilliseconds;
-                        Logger.I(tag, $"Exact synchronisation Synchronising {snap.Count} channels");
-                        
-                        int N = plotBuffer.Count;
-                        AudioRecord[] snappedCls = new AudioRecord[N];
-                        double[][] Tms = new double[N][];
-                        double[][] Y = new double[N][];
-                        for (int i = 0; i < N; i++)
-                        {
-                            snappedCls[i] = pltBuffSnap[i];
-                            Tms[i] = (double[])snappedCls[i].X.Clone();
-                            Y[i] = (double[])snappedCls[i].Y.Clone();
-                        }
-                        //var r1 = pltBuffSnap[0];
-                        //var r2 = pltBuffSnap[1];
-                        //double[] T1ms = (double[])r1.X.Clone();
-                        //double[] Y1 = (double[])r1.Y.Clone();
-                        //double[] T2ms = (double[])r2.X.Clone();
-                        //double[] Y2 = (double[])r2.Y.Clone();
-                        const double MaxtimeShift = 30.0;
-                        bool allChannelsSynch = true;
-                        for (int i = 1; i < N; i++)
-                        {
-
-                            if(!isChanOk[i])
-                            {
-
-                                double timeShift = await AudioProcessing.findTimeShiftAsync(Tms[0], Y[0], Tms[i], Y[i]);
-
-                                if (double.IsNaN(timeShift))
-                                {
-                                    Logger.W(tag, $"SYNCHRONISATION:     Could not calculate time shift for channel {snappedCls[i].id} continuing to next channel");
-                                    allChannelsSynch = false;
-                                    break;
-                                }
-
-                                var cc2 = plotBuffer.First(kvp => kvp.Value.id == snappedCls[i].id).Key;
-                                if (Math.Abs(timeShift) <= MaxtimeShift)
-                                {
-                                    //Applay shift
-                                    cc2.offsetMs -= timeShift;
-                                    Logger.I(tag, $"SYNCHRONISATION:     Applied shift of {timeShift} ms to channel {cc2.id}");
-                                    isChanOk[i] = true;
-                                }
-                                else
-                                {
-                                    Logger.W(tag, $"Calculated audio shift: {timeShift} ms is too high repeating synchronisation for client {cc2.id}");
-                                }
-
-                                allChannelsSynch = allChannelsSynch && isChanOk[i];
-                            }
-
-                        }// for loop
-
-                        //if (MaxtimeShift > 1)
-                        //{
-                        //    doSynch = false;
-                        //    repetitions++;
-                        //    Logger.W(tag, $"Time shift {MaxtimeShift} too hight repeating synchronisation");
-                        //}
-                        //else if (repetitions < 5)
-                        //{
-                        //    {
-                        //        doSynch = false;
-                        //        repetitions = 0;
-                        //        Logger.E(tag, $"Too many repetitions");
-                        //    }
-
-                        //}
-                        doSynch = !allChannelsSynch;
-                        //doSynch = false; //tmp
-
-                        if (allChannelsSynch)
-                        {
-                            double stopSychMs = stopWatch.Elapsed.TotalMilliseconds;
-                            double synchTimeMs = stopSychMs - startSychMs;
-                            Logger.I(tag, $"Synchronisation done took {synchTimeMs} ms");
-
-                            for (int i=0; i<3; i++)
-                                isChanOk[i] = false;
-                        }
-                    }
-
-                }
 
                 formsPlotRef.Invoke((MethodInvoker)delegate { formsPlotRef.Plot.Clear(); });
+                formsPlotTimeShiftsRef.Invoke((MethodInvoker)delegate { formsPlotTimeShiftsRef.Plot.Clear(); });
 
                 yLimMin = double.MaxValue;
                 yLimMax = 0;
                 double serverNowMs = stopWatch.Elapsed.TotalMilliseconds;
                 foreach (var it in plotBuffer)
                 {
-                    ClientChannel cc = it.Key; //ClientChannel
+                    AudioChunkChannel cc = it.Key; //ClientChannel
                     AudioRecord ar = it.Value; //AudioRecord
                     ar.appendData(cc, serverNowMs);
-                    ar.prepareData(ref formsPlotRef);
+                    ar.prepareData(ref formsPlotTimeShiftsRef, ref formsPlotRef);
                 }
+
+                if(plotBuffer.Count > 0)
+                {
+                    yLimMin = plotBuffer.Values.SelectMany(r => r.X).Min();
+                    yLimMax = plotBuffer.Values.SelectMany(r => r.X).Max();
+                    formsPlotRef.Plot.Axes.SetLimitsX(yLimMin, yLimMax);
+
+                    //do the same for shifts plot
+                    //double second = vals.OrderBy(v => v).Skip(1).First();
+                    //var vals = plotBuffer.Values.SelectMany(r => r.timeStamps);
+                    //if(vals.Count() > 2)
+                    //{
+                    //    yLimMinShifts = vals.Distinct().OrderBy(v => v).Skip(1).First();
+                    //}
+
+                    var positives = plotBuffer.Values
+                        .SelectMany(r => r.timeStamps ?? Array.Empty<double>())
+                        .Where(v => v > 0 && !double.IsNaN(v) && !double.IsInfinity(v))
+                        .ToList();
+
+                    if (positives.Count > 0)
+                        yLimMinShifts = positives.Min();
+                    else
+                        yLimMinShifts = 0; 
+
+                    yLimMaxShifts = plotBuffer.Values.SelectMany(r => r.timeStamps).Max();
+                    formsPlotTimeShiftsRef.PerformAutoScale();
+                }
+
 
                 //refresh plot
                 formsPlotRef.Plot.Axes.SetLimitsX(yLimMin, yLimMax);
                 formsPlotRef.Invoke((MethodInvoker)delegate { formsPlotRef.Refresh(); });
-                await Task.Delay(10, clcTok); //refresh rate
+
+                formsPlotTimeShiftsRef.Plot.Axes.SetLimitsX(yLimMinShifts, yLimMaxShifts);
+                formsPlotRef.Invoke((MethodInvoker)delegate { formsPlotTimeShiftsRef.Refresh(); });
+                //await Task.Delay(100, clcTok); //refresh rate
             }
         }
     }

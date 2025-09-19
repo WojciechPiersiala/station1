@@ -39,13 +39,13 @@ namespace station1.Forms
             //sampleQueue = new ConcurrentQueue<AudioData>();
             Logger.Initialize(richTextBox_logger);
 
-            /* Audio and plotter setup */
-            int audioLen = 6144; // audio len in bytesmust be the same as in the client
-            int audioCunks = 2; // number of audio chunks to store in the plotter
-            int samplingRate = 52000; //Hz mic frequency
+            ///* Audio and plotter setup */
+            //int audioLen = 4096; // audio len in bytesmust be the same as in the client old: 6144
+            //int audioCunks = 1; // number of audio chunks to store in the plotter
+            //int samplingRate = 16000; //Hz mic frequency
 
-            tcpServer = new TcpServer(audioLen);
-            pdmPlotter = new PdmPlotter(formsPlot_pdm, tcpServer.connectedClients, audioLen, audioCunks, samplingRate);
+            tcpServer = new TcpServer(/*audioLen*/);
+            pdmPlotter = new PdmPlotter(formsPlot_timeShifts, formsPlot_pdm, tcpServer.connectedClients/*, audioLen, audioCunks, samplingRate*/);
         }
 
         private void button_exit_Click(object sender, EventArgs e)
@@ -103,7 +103,7 @@ namespace station1.Forms
             bool hasChanel = input.Contains(str2look, StringComparison.OrdinalIgnoreCase); // true
             if (hasChanel)
             {
-                pdmPlotter.changeTimeOffset(input, str2look);
+                pdmPlotter.manuallyChangeTimeOffset(input, str2look);
             }
 
         }
@@ -127,7 +127,7 @@ namespace station1.Forms
 
         private void button_ExactSynch_Click(object sender, EventArgs e)
         {
-            pdmPlotter.ExactSynch();
+            pdmPlotter.startExactSynch();
         }
     }
 }
