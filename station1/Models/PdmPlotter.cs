@@ -134,20 +134,40 @@ namespace station1.Models
             StringBuilder sbHeader = new();
             foreach (var s in snap)
             {
-                sbHeader.Append($"t{s.id},").Append($"y{s.id},");
+                sbHeader.Append($"t{s.id},").Append($"y{s.id},").Append($"shifts{s.id},").Append($"shiftsAvg{s.id},").Append($"timeStamps{s.id},");
             }
             sbHeader.Length--;
             string header = sbHeader.ToString();
             lines.Add(header);
 
+
+            //export shifts
+            int N = Globals.MaxPlotHist;
+            int j = 0;
             for (int i = 0; i < Globals.Capacity; i++)
             {
                 StringBuilder sb = new();
                 foreach (var s in snap)
                 {
+                    //audio data
                     string timeSampe = s.X[i].ToString("R", inv);
                     string audioSample = s.Y[i].ToString("R", inv);
+
                     sb.Append(timeSampe).Append(",").Append(audioSample).Append(",");
+                    // shifts
+                    var activeShifts = s.shifts;
+                    //if () continue; // no shifts recorded
+                    if ((j < N) && activeShifts.Length > 0)
+                    {
+
+                        string shifts = s.shifts[j].ToString("R", inv);
+                        string shiftsAvg = s.shiftsAvg[j].ToString("R", inv);
+                        string timeStamps = s.timeStamps[j].ToString("R", inv);
+
+                        sb.Append(shifts).Append(",").Append(shiftsAvg).Append(",").Append(timeStamps).Append(",");
+                        j++;
+                    }
+
                 }
                 sb.Length--;
                 //sb.RemoveAt(sb.Count - 1);
@@ -233,7 +253,7 @@ namespace station1.Models
                 var (chani, reci) = (snapPltBuff[i].Key, snapPltBuff[i].Value);   //the channel to update
                 var Ti = reci.X;
                 var Yi = reci.Y;
-                double maxLag = 1.0; //ms
+                double maxLag = Globals.MinValidSchiftUs; //ms
                 if (doSynch) maxLag = 100000.0; //us
 
                 //Logger.I(tag, $"{isChanOk[0]}, {isChanOk[1]}, {isChanOk[2]}, {maxLag}");

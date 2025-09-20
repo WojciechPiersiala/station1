@@ -1,8 +1,11 @@
-﻿using ScottPlot.WinForms;
+﻿using ScottPlot;
+using ScottPlot.WinForms;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Globalization;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,10 +13,16 @@ namespace station1.Models
 {
     internal class AudioRecord
     {
+        private double lastSmoothedShift = 0;
+        private bool shiftsFull = false;
         public bool isFirstChannel = false;
         public double[] shifts;
         public double[] timeStamps;
-        private int shiftsN = 1000;
+
+        public double[] shiftsAvg;
+        //public double[] timeStampsAvg;
+
+        //private int shiftsN = 1000;
         private int shiftIdx = 0;
         //private double recntTime = 0.0;
 
@@ -44,8 +53,9 @@ namespace station1.Models
             this.Y = new double[Globals.Capacity];
 
 
-            this.shifts = new double[shiftsN];
-            this.timeStamps = new double[shiftsN];
+            this.shifts = new double[Globals.MaxPlotHist];
+            this.timeStamps = new double[Globals.MaxPlotHist];
+            this.shiftsAvg = new double[Globals.MaxPlotHist];
 
             this.id = id;
             this.isFirstChannel = isFirstChannel;
@@ -122,10 +132,35 @@ namespace station1.Models
             shiftIdx++;
 
             //Array.Sort(timeStamps, shifts); // keep time sorted
-            if (shiftIdx >= shiftsN)
+            if (shiftIdx >= Globals.MaxPlotHist)
             {
                 shiftIdx = 0;
             }
+            double filtered;
+            if (shiftIdx >= Globals.Navg)
+                filtered = medianShifts(shifts, shiftIdx - Globals.Navg, Globals.Navg);
+            else
+                filtered = shift;
+
+            // apply exponential smoothing on top
+            lastSmoothedShift = smoothShift(lastSmoothedShift, filtered);
+
+            // save result for plotting / later use
+            shiftsAvg[shiftIdx] = lastSmoothedShift;
+
+        }
+
+        private double medianShifts(double[] shifts, int startIdx, int dataPoints)
+        {
+            if (shifts.Length < dataPoints || startIdx + dataPoints > shifts.Length) return double.NaN;
+            var window = shifts.Skip(startIdx).Take(dataPoints).OrderBy(v => v).ToArray();
+            int mid = dataPoints / 2;
+            return (dataPoints % 2 == 0) ? (window[mid - 1] + window[mid]) / 2.0 : window[mid];
+        }
+
+        private double smoothShift(double prev, double current, double alpha = 0.5)
+        {
+            return alpha * current + (1 - alpha) * prev;
         }
 
         public void Synch()
@@ -138,39 +173,91 @@ namespace station1.Models
         {
             Array.Clear(shifts, 0, shifts.Length);
             Array.Clear(timeStamps, 0, timeStamps.Length);
+
+            Array.Clear(shiftsAvg, 0, shiftsAvg.Length);
+
             shiftIdx = 0;
         }
+
+
         public void prepareData(ref FormsPlot formsPlotTimeShiftsRef, ref FormsPlot formsPlotRef)
         {
-            //Array.Sort(X, Y);
+
             var scatter = formsPlotRef.Plot.Add.Scatter(this.X, this.Y);
             scatter.LegendText = $"Client {this.id}";
 
-            //if (!isFirstChannel) Logger.S(tag, $"{this.id}");
-            var scatter2 = formsPlotTimeShiftsRef.Plot.Add.Lollipop(this.shifts, this.timeStamps);
 
-            //var lp = formsPlotRef.Plot.Add.Lollipop(ys, xs);
+            var scatter2 = formsPlotTimeShiftsRef.Plot.Add.Scatter(this.timeStamps, this.shifts);
+            scatter2.LineWidth = 0;
             scatter2.LegendText = $"dT {this.id}";
-            //Logger.I(tag, $"\n\nPrepared data for client \n {this.id} \n timeStamps:{string.Join(", ", timeStamps.Select(v => v.ToString("R", CultureInfo.InvariantCulture)))}, shift: {string.Join(", ", shifts.Select(v => v.ToString("R", CultureInfo.InvariantCulture)))}");
+
+
+            //int count = shiftsAvg.Count
+            //var x = this.timeStamps.Take(count).ToArray();
+            //var y = this.shiftsAvg.Take(count).ToArray();
+
+
+
+
+            //// avg
+            //int N = shiftIdx;
+            //if (shiftIdx >= timeStamps.Length)
+            //    shiftsFull = true;
+
+            //if(shiftsFull)
+            //    N = timeStamps.Length;
+
+            //var timeStampPlt = new double[shiftIdx];
+            //var shiftsAvgPlt = new double[shiftIdx];
+
+            //Array.Copy(timeStamps, timeStampPlt, shiftIdx);
+            //Array.Copy(shiftsAvg, shiftsAvgPlt, shiftIdx);
+
+            //Array.Sort(timeStampPlt, shiftsAvgPlt);
+
+
+
+
+            //var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Scatter(timeStampPlt, shiftsAvgPlt);
+            //var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Scatter(this.timeStamps, this.shiftsAvg);
+            var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Lollipop(this.shiftsAvg, this.timeStamps);
+            //scatter3.MarkerSize = 0;
+            //scatter2.LegendText = $"Avg dT {this.id}";
+
+
+
+
 
 
             switch (this.id)
             {
                 case 11:
-                    scatter.Color = new ScottPlot.Color(0, 125, 0); // Green
-                    scatter2.Color = new ScottPlot.Color(0, 125, 0); // Green
+                    var color = new ScottPlot.Color(0, 125, 0);
+                    scatter.Color = color;
+                    scatter2.Color = color;
+                    scatter3.Color = color;
                     break;
                 case 12:
-                    scatter.Color = new ScottPlot.Color(255, 0, 0); // Red
-                    scatter2.Color = new ScottPlot.Color(255, 0, 0); // Red
+                    //scatter.Color = new ScottPlot.Color(255, 0, 0); // Red
+                    color = new ScottPlot.Color(255, 0, 0);
+                    scatter.Color = color;
+                    scatter2.Color = color;
+                    scatter3.Color = color;
                     break;
                 case 13:
-                    scatter.Color = new ScottPlot.Color(0, 0, 255); // Blue
-                    scatter2.Color = new ScottPlot.Color(0, 0, 255); // Blue
+                    //scatter.Color = new ScottPlot.Color(0, 0, 255); // Blue
+                    color = new ScottPlot.Color(0, 0, 255);
+                    scatter.Color = color;
+                    scatter2.Color = color;
+                    scatter3.Color = color;
                     break;
                 default:
-                    scatter.Color = new ScottPlot.Color(0, 0, 0); // Black
-                    scatter2.Color = new ScottPlot.Color(0, 0, 0); // Black
+                    //scatter.Color = new ScottPlot.Color(0, 0, 0); // Black
+                    //var color = new ScottPlot.Color(0, 125, 0);
+                    color = new ScottPlot.Color(0, 0, 0);
+                    scatter.Color = color;
+                    scatter2.Color = color;
+                    scatter3.Color = color;
                     break;
             }
             //scatter2.LineStyle = ScottPlot.LineStyle;

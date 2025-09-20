@@ -8,16 +8,19 @@ namespace station1.Models
 {
     public static class Globals
     {
-        public static int AudioLen = 4096;
-        public static int AudioChunks = 1;
-        public static int SamplingRate = 16000;
-        public static int MaxChunks = 1;
+        public static int DownsampleFact = 1;
+
+        public static int AudioLen = 6144;
+        public static int SamplingRate = 16000; // 48000 6144
+        public static int MaxChunks = 2;
         public static int SamplesPerChunk = AudioLen / 2;
         public static int Capacity = SamplesPerChunk * MaxChunks;
-        public static int DownsampleFact = 1;
+        
         public static int MaxPlotHist= 1000;
+        public static int Navg= 10;
+        //double maxLag = 1.0; //ms
 
-        public static double MinValidSchiftUs = 10.0; // 1ms
+        public static double MinValidSchiftUs = 2.0; // 1ms correlation thresshold
         public static double VolumeThresshols = 50.0;
 
         public static bool Downsample = false;
