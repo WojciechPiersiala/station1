@@ -106,6 +106,15 @@ namespace station1.Forms
                 pdmPlotter.manuallyChangeTimeOffset(input, str2look);
             }
 
+
+
+            string str2look2 = "Freq";
+            bool hasChanel2 = input.Contains(str2look2, StringComparison.OrdinalIgnoreCase); // true
+            if (hasChanel2)
+            {
+                pdmPlotter.manuallyChangeFreqOffset(input, str2look);
+            }
+
         }
 
 
@@ -128,6 +137,12 @@ namespace station1.Forms
         private void button_ExactSynch_Click(object sender, EventArgs e)
         {
             pdmPlotter.startExactSynch();
+        }
+
+        private void button_controls_Click(object sender, EventArgs e)
+        {
+            Form_Controls formControls = new Form_Controls();
+            formControls.Show();  // opens it non-blocking
         }
     }
 }

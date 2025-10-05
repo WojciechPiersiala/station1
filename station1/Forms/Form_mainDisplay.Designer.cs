@@ -38,6 +38,7 @@
             richTextBox_logger = new RichTextBox();
             formsPlot_timeShifts = new ScottPlot.WinForms.FormsPlot();
             panel1 = new Panel();
+            button_controls = new Button();
             button_ExactSynch = new Button();
             button_export = new Button();
             button_synch = new Button();
@@ -55,7 +56,7 @@
             // button_exit
             // 
             button_exit.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            button_exit.Location = new Point(928, 6);
+            button_exit.Location = new Point(1071, 6);
             button_exit.Name = "button_exit";
             button_exit.Size = new Size(121, 29);
             button_exit.TabIndex = 0;
@@ -91,7 +92,7 @@
             textBox_input.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textBox_input.Location = new Point(203, 7);
             textBox_input.Name = "textBox_input";
-            textBox_input.Size = new Size(396, 27);
+            textBox_input.Size = new Size(439, 27);
             textBox_input.TabIndex = 5;
             textBox_input.Text = "Channel1 10000";
             textBox_input.TextChanged += textBox_input_TextChanged;
@@ -102,7 +103,7 @@
             formsPlot_pdm.Dock = DockStyle.Fill;
             formsPlot_pdm.Location = new Point(0, 0);
             formsPlot_pdm.Name = "formsPlot_pdm";
-            formsPlot_pdm.Size = new Size(1061, 215);
+            formsPlot_pdm.Size = new Size(1204, 219);
             formsPlot_pdm.TabIndex = 4;
             // 
             // splitContainer1
@@ -119,8 +120,8 @@
             // splitContainer1.Panel2
             // 
             splitContainer1.Panel2.Controls.Add(splitContainer2);
-            splitContainer1.Size = new Size(1061, 437);
-            splitContainer1.SplitterDistance = 215;
+            splitContainer1.Size = new Size(1204, 447);
+            splitContainer1.SplitterDistance = 219;
             splitContainer1.TabIndex = 8;
             // 
             // splitContainer2
@@ -136,8 +137,8 @@
             // splitContainer2.Panel2
             // 
             splitContainer2.Panel2.Controls.Add(formsPlot_timeShifts);
-            splitContainer2.Size = new Size(1061, 218);
-            splitContainer2.SplitterDistance = 335;
+            splitContainer2.Size = new Size(1204, 224);
+            splitContainer2.SplitterDistance = 380;
             splitContainer2.TabIndex = 0;
             // 
             // richTextBox_logger
@@ -145,7 +146,7 @@
             richTextBox_logger.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             richTextBox_logger.Location = new Point(12, 3);
             richTextBox_logger.Name = "richTextBox_logger";
-            richTextBox_logger.Size = new Size(320, 170);
+            richTextBox_logger.Size = new Size(365, 176);
             richTextBox_logger.TabIndex = 7;
             richTextBox_logger.Text = "";
             richTextBox_logger.TextChanged += richTextBox_logger_TextChanged;
@@ -156,11 +157,12 @@
             formsPlot_timeShifts.DisplayScale = 1.25F;
             formsPlot_timeShifts.Location = new Point(3, 3);
             formsPlot_timeShifts.Name = "formsPlot_timeShifts";
-            formsPlot_timeShifts.Size = new Size(707, 170);
+            formsPlot_timeShifts.Size = new Size(805, 176);
             formsPlot_timeShifts.TabIndex = 0;
             // 
             // panel1
             // 
+            panel1.Controls.Add(button_controls);
             panel1.Controls.Add(button_ExactSynch);
             panel1.Controls.Add(button_export);
             panel1.Controls.Add(button_synch);
@@ -169,16 +171,27 @@
             panel1.Controls.Add(textBox_input);
             panel1.Controls.Add(button_exit);
             panel1.Dock = DockStyle.Bottom;
-            panel1.Location = new Point(0, 398);
+            panel1.Location = new Point(0, 408);
             panel1.Name = "panel1";
-            panel1.Size = new Size(1061, 39);
+            panel1.Size = new Size(1204, 39);
             panel1.TabIndex = 9;
+            // 
+            // button_controls
+            // 
+            button_controls.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            button_controls.Location = new Point(648, 7);
+            button_controls.Name = "button_controls";
+            button_controls.Size = new Size(94, 29);
+            button_controls.TabIndex = 10;
+            button_controls.Text = "Controls";
+            button_controls.UseVisualStyleBackColor = true;
+            button_controls.Click += button_controls_Click;
             // 
             // button_ExactSynch
             // 
             button_ExactSynch.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             button_ExactSynch.Enabled = false;
-            button_ExactSynch.Location = new Point(805, 7);
+            button_ExactSynch.Location = new Point(948, 7);
             button_ExactSynch.Name = "button_ExactSynch";
             button_ExactSynch.Size = new Size(94, 29);
             button_ExactSynch.TabIndex = 9;
@@ -189,7 +202,7 @@
             // button_export
             // 
             button_export.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            button_export.Location = new Point(605, 6);
+            button_export.Location = new Point(748, 6);
             button_export.Name = "button_export";
             button_export.Size = new Size(94, 29);
             button_export.TabIndex = 8;
@@ -200,7 +213,7 @@
             // button_synch
             // 
             button_synch.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            button_synch.Location = new Point(705, 6);
+            button_synch.Location = new Point(848, 6);
             button_synch.Name = "button_synch";
             button_synch.Size = new Size(94, 29);
             button_synch.TabIndex = 6;
@@ -212,7 +225,7 @@
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1061, 437);
+            ClientSize = new Size(1204, 447);
             Controls.Add(panel1);
             Controls.Add(splitContainer1);
             Name = "Form_mainDisplay";
@@ -245,5 +258,6 @@
         private RichTextBox richTextBox_logger;
         private SplitContainer splitContainer2;
         private ScottPlot.WinForms.FormsPlot formsPlot_timeShifts;
+        private Button button_controls;
     }
 }

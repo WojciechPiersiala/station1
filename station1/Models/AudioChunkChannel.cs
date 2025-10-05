@@ -17,6 +17,7 @@ namespace station1.Models
         private Stopwatch runtimeWatch = Stopwatch.StartNew();
         public double recentTimestampMs = 0.0; // in ms client current timestamp of the last received packet
         public double? offsetMs = null; // in ms client offset
+        public double offsetFreq = 0;
         public bool synchronise = false;
         public int id { get; }
         public TcpClient tcpClient { get; }

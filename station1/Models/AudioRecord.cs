@@ -20,18 +20,11 @@ namespace station1.Models
         public double[] timeStamps;
 
         public double[] shiftsAvg;
-        //public double[] timeStampsAvg;
 
-        //private int shiftsN = 1000;
         private int shiftIdx = 0;
-        //private double recntTime = 0.0;
+
 
         private string tag;
-        //private int samplingRate;
-        //private int maxChunks; // 16 -> 1.04 s //16 old
-        //private int audioLen;
-        //private int SamplesPerChunk; // number of audio samples in a single chunk
-        //private int Capacity;
 
         public int id = -1;
         private double offsetY = 0;
@@ -43,11 +36,7 @@ namespace station1.Models
         {
             this.isFirstChannel = isFirstChannel;
             tag = $"AudioRecord {id}";
-            //this.samplingRate = PdmPlotter.samplingRate;
-            //this.maxChunks = PdmPlotter.maxChunks; // 16 -> 1.04 s //16 old
-            //this.audioLen = PdmPlotter.audioLen;
-            //this.SamplesPerChunk = PdmPlotter.SamplesPerChunk; // number of audio samples in a single chunk
-            //this.Capacity = Capacity;
+
 
             this.X = new double[Globals.Capacity];
             this.Y = new double[Globals.Capacity];
@@ -75,7 +64,7 @@ namespace station1.Models
             Array.Copy(xs, 0, X, chunkIdx * chunkSize, chunkSize);
 
             chunkIdx = (chunkIdx + 1) % Globals.MaxChunks;
-            //Array.Sort(X, Y);
+
         }
 
 
@@ -106,7 +95,7 @@ namespace station1.Models
                 double stop_ms = start_ms + (dt_ms * samples.length);
 
                 double[] xs = Enumerable.Range(0, samples.length)
-                    .Select(i => start_ms + i * dt_ms)
+                    .Select(i => start_ms + i * (dt_ms + clientChannel.offsetFreq))
                     .ToArray();
 
                 double[] ys = samples.samples.Select(s => (double)s - offsetY).ToArray();
@@ -125,13 +114,11 @@ namespace station1.Models
         {
             //remember time shifts
             if (timeStamp < 100.0) return;
-            //if (Math.Abs(shift) > Globals.MinValidSchiftUs) return; //ms
 
             shifts[shiftIdx] = shift; //ms to us
             timeStamps[shiftIdx] = timeStamp;
             shiftIdx++;
 
-            //Array.Sort(timeStamps, shifts); // keep time sorted
             if (shiftIdx >= Globals.MaxPlotHist)
             {
                 shiftIdx = 0;
@@ -191,42 +178,7 @@ namespace station1.Models
             scatter2.LineWidth = 0;
             scatter2.LegendText = $"dT {this.id}";
 
-
-            //int count = shiftsAvg.Count
-            //var x = this.timeStamps.Take(count).ToArray();
-            //var y = this.shiftsAvg.Take(count).ToArray();
-
-
-
-
-            //// avg
-            //int N = shiftIdx;
-            //if (shiftIdx >= timeStamps.Length)
-            //    shiftsFull = true;
-
-            //if(shiftsFull)
-            //    N = timeStamps.Length;
-
-            //var timeStampPlt = new double[shiftIdx];
-            //var shiftsAvgPlt = new double[shiftIdx];
-
-            //Array.Copy(timeStamps, timeStampPlt, shiftIdx);
-            //Array.Copy(shiftsAvg, shiftsAvgPlt, shiftIdx);
-
-            //Array.Sort(timeStampPlt, shiftsAvgPlt);
-
-
-
-
-            //var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Scatter(timeStampPlt, shiftsAvgPlt);
-            //var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Scatter(this.timeStamps, this.shiftsAvg);
             var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Lollipop(this.shiftsAvg, this.timeStamps);
-            //scatter3.MarkerSize = 0;
-            //scatter2.LegendText = $"Avg dT {this.id}";
-
-
-
-
 
 
             switch (this.id)
@@ -260,10 +212,6 @@ namespace station1.Models
                     scatter3.Color = color;
                     break;
             }
-            //scatter2.LineStyle = ScottPlot.LineStyle;
-            //scatter2.LineWidth = 2;
-            //scatter2.MarkerShape = ScottPlot.MarkerShape.FilledCircle;
-            //scatter2.MarkerSize = 5
         }
     }
 }
