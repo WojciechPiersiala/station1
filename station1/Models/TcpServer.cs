@@ -29,6 +29,7 @@ namespace station1.Models
         Stopwatch timer; // main timer
         private TcpListener server;
         private string tag = "tcpServer";
+        private readonly object _clientsLock = new();
         public List<AudioChunkChannel> connectedClients { get; } = new(); // handle multiple clients
         private const int headerLen = 9;
         private const bool isLogSamples = false;
@@ -58,9 +59,14 @@ namespace station1.Models
         {
             while (!clcTok.IsCancellationRequested)
             {
-                foreach (var cc in connectedClients)
+
+                AudioChunkChannel[] snapshot;
+                lock (_clientsLock)
+                    snapshot = connectedClients.ToArray();
+
+                foreach (var cc in snapshot)
                 {
-                    double readTime = (timer.ElapsedMilliseconds - cc.lastReadTime);
+                    double readTime = (timer.ElapsedMilliseconds - cc.lastReadTimeSynch);
                     if (readTime > clientTimeout)
                     {
                         Logger.E(tag, $"Timeout. Client with ID: {cc.id} didn't respond for more than {readTime}. Removing the client...");
@@ -72,14 +78,14 @@ namespace station1.Models
                             using (Stream stream = tcpClient.GetStream())
                             {
                                 stream?.Close();
-                                stream?.Dispose();
                             }
                         }
 
                         tcpClient?.Close();
                         tcpClient?.Dispose();
-                        connectedClients.Remove(cc);
-                        break; // break foreach to avoid collection modification error
+                        lock (_clientsLock)
+                            connectedClients.Remove(cc);
+                        //break; // break foreach to avoid collection modification error
                     }
                 }
                 await Task.Delay(1000, clcTok); //refresh rate
@@ -105,7 +111,8 @@ namespace station1.Models
                     TcpClient newTcpClient = await server.AcceptTcpClientAsync(clcTok);
                     Logger.I(tag, $"Connected!");
                     var clientChannel = new AudioChunkChannel(newTcpClient);
-                    connectedClients.Add(clientChannel);
+                    lock (_clientsLock)
+                        connectedClients.Add(clientChannel);
 
                     string clientIp = ((IPEndPoint)clientChannel.tcpClient.Client.RemoteEndPoint).Address.ToString();
                     Logger.I(tag, $"Client with id: {clientChannel.id} and ip: {clientIp} added to the queue. Number of connected clients: {connectedClients.Count}");
@@ -132,7 +139,11 @@ namespace station1.Models
 
         public void StopTcp()
         {
-            foreach (var cc in connectedClients)
+            AudioChunkChannel[] snapshot;
+            lock (_clientsLock)
+                snapshot = connectedClients.ToArray();
+
+            foreach (var cc in snapshot)
             {
                 TcpClient currentClient = cc.tcpClient;
                 NetworkStream stream = currentClient.GetStream();
@@ -152,7 +163,8 @@ namespace station1.Models
             }
             server?.Stop();
             Logger.I(tag, $"Server stopped");
-            connectedClients.Clear();
+            lock (_clientsLock)
+                connectedClients.Clear();
         }
 
 
@@ -168,7 +180,7 @@ namespace station1.Models
                 while (headerRead < headerLen)
                 {
                     int read = stream.Read(headerBytes, headerRead, headerLen - headerRead);
-                    clientChannel.lastReadTime = timer.ElapsedMilliseconds;
+                    clientChannel.lastReadTimeSynch = timer.ElapsedMilliseconds;
                     if (read == 0) throw new IOException("Connection closed before header received");
                     headerRead += read;
                 }

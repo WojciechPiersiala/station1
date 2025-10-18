@@ -24,6 +24,7 @@ namespace station1.Forms
         private PdmPlotter pdmPlotter;
 
         private bool isTcpListening;
+        private Form_Controls formControls;
         CancellationTokenSource cancelTcp;
         CancellationTokenSource cancelPlot;
 
@@ -44,8 +45,9 @@ namespace station1.Forms
             //int audioCunks = 1; // number of audio chunks to store in the plotter
             //int samplingRate = 16000; //Hz mic frequency
 
+            formControls = new Form_Controls();
             tcpServer = new TcpServer(/*audioLen*/);
-            pdmPlotter = new PdmPlotter(formsPlot_timeShifts, formsPlot_pdm, tcpServer.connectedClients/*, audioLen, audioCunks, samplingRate*/);
+            pdmPlotter = new PdmPlotter(formsPlot_timeShifts, formsPlot_pdm, tcpServer.connectedClients, formControls/*, audioLen, audioCunks, samplingRate*/);
         }
 
         private void button_exit_Click(object sender, EventArgs e)
@@ -141,8 +143,11 @@ namespace station1.Forms
 
         private void button_controls_Click(object sender, EventArgs e)
         {
-            Form_Controls formControls = new Form_Controls();
-            formControls.Show();  // opens it non-blocking
+            if (formControls == null || formControls.IsDisposed)
+                formControls = new Form_Controls();
+
+            formControls.Show();
+            formControls.BringToFront();
         }
     }
 }

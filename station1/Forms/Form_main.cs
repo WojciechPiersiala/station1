@@ -18,7 +18,7 @@ namespace station1.Forms
         public Form_main()
         {
             InitializeComponent();
-            this.Size = new System.Drawing.Size(800, 600);
+            this.Size = new System.Drawing.Size(1100, 600);
 
             Form_mainDisplay form_MainDisplay = new();
             this.ChangeForm(form_MainDisplay);
