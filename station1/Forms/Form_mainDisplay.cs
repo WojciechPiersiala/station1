@@ -44,8 +44,8 @@ namespace station1.Forms
             //int audioCunks = 1; // number of audio chunks to store in the plotter
             //int samplingRate = 16000; //Hz mic frequency
 
-            tcpServer = new TcpServer(/*audioLen*/);
-            pdmPlotter = new PdmPlotter(formsPlot_timeShifts, formsPlot_pdm, tcpServer.connectedClients/*, audioLen, audioCunks, samplingRate*/);
+            tcpServer = new TcpServer();
+            pdmPlotter = new PdmPlotter(formsPlot_timeShifts, formsPlot_pdm, tcpServer.connectedClients);
         }
 
         private void button_exit_Click(object sender, EventArgs e)
@@ -71,7 +71,7 @@ namespace station1.Forms
 
                 cancelPlot = new CancellationTokenSource();
                 Logger.I(tag, $"Plotter thread started");
-                Task taskPlot = Task.Run(() => pdmPlotter.Plot(cancelPlot.Token));
+                Task taskPlot = Task.Run(() => pdmPlotter.RunProgram(this, cancelPlot.Token));
 
             }
             else
@@ -96,32 +96,32 @@ namespace station1.Forms
 
         private void button_send_Click(object sender, EventArgs e)
         {
-            //tcpServer.SendTcp(textBox_input.Text + "\n");
-            string input = textBox_input.Text;
+            ////tcpServer.SendTcp(textBox_input.Text + "\n");
+            //string input = textBox_input.Text;
 
-            string str2look = "Channel";
-            bool hasChanel = input.Contains(str2look, StringComparison.OrdinalIgnoreCase); // true
-            if (hasChanel)
-            {
-                pdmPlotter.manuallyChangeTimeOffset(input, str2look);
-            }
+            //string str2look = "Channel";
+            //bool hasChanel = input.Contains(str2look, StringComparison.OrdinalIgnoreCase); // true
+            //if (hasChanel)
+            //{
+            //    pdmPlotter.manuallyChangeTimeOffset(input, str2look);
+            //}
 
 
 
-            string str2look2 = "Freq";
-            bool hasChanel2 = input.Contains(str2look2, StringComparison.OrdinalIgnoreCase); // true
-            if (hasChanel2)
-            {
-                pdmPlotter.manuallyChangeFreqOffset(input, str2look);
-            }
+            //string str2look2 = "Freq";
+            //bool hasChanel2 = input.Contains(str2look2, StringComparison.OrdinalIgnoreCase); // true
+            //if (hasChanel2)
+            //{
+            //    pdmPlotter.manuallyChangeFreqOffset(input, str2look);
+            //}
 
         }
 
 
         private void button_synch_Click(object sender, EventArgs e)
         {
+            //Logger.W(tag, "Not implemented");
             pdmPlotter.Synch();
-            button_ExactSynch.Enabled = true;
         }
 
         private void button_export_Click(object sender, EventArgs e)
@@ -134,15 +134,25 @@ namespace station1.Forms
 
         }
 
-        private void button_ExactSynch_Click(object sender, EventArgs e)
-        {
-            pdmPlotter.startExactSynch();
-        }
+        //private void button_ExactSynch_Click(object sender, EventArgs e)
+        //{
+        //    pdmPlotter.startExactSynch();
+        //}
 
         private void button_controls_Click(object sender, EventArgs e)
         {
             Form_Controls formControls = new Form_Controls();
             formControls.Show();  // opens it non-blocking
+        }
+
+        private void label_serverTime_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button_ExactSynch_Click(object sender, EventArgs e)
+        {
+            pdmPlotter.ExactSynch();
         }
     }
 }

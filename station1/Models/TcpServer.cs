@@ -103,6 +103,7 @@ namespace station1.Models
                 {
                     Logger.I(tag, $"Waiting for connection ...");
                     TcpClient newTcpClient = await server.AcceptTcpClientAsync(clcTok);
+                    newTcpClient.NoDelay = true;
                     Logger.I(tag, $"Connected!");
                     var clientChannel = new AudioChunkChannel(newTcpClient);
                     connectedClients.Add(clientChannel);
@@ -160,6 +161,7 @@ namespace station1.Models
         {
             Logger.I(tag, $"tcp client task with id {clientChannel.id} started");
             NetworkStream stream = clientChannel.tcpClient.GetStream();
+            //var header = new byte[1];
             while (!clcTok.IsCancellationRequested)
             {
                 /* Read header */
@@ -180,35 +182,68 @@ namespace station1.Models
                 char messageTypeChar = (char)headerBytes[0];
 
 
-                if (messageTypeChar == 'A') //Audio
+                switch(messageTypeChar) //Audio
                 {
-                    if (isLogAudioInfo)
-                    {
-                        Logger.I(tag, $"{messageTypeChar}: {timestampUs}");
-                    }
+                    case 'A': // Audio data
+                        if (isLogAudioInfo)
+                        {
+                            Logger.I(tag, $"{messageTypeChar}: {timestampUs}");
+                        }
 
 
-                    /* Read audio samples */
-                    //int audioLen = 2048; // audio data length
-                    byte[] audioBytes = new byte[Globals.AudioLen];
-                    int audioRead = 0;
-                    //AudioChunk samples = new AudioChunk(timestamp, Globals.AudioLen / 2);
-                    AudioChunk samples = new AudioChunk(timestampUs, Globals.AudioLen / 2);
-                    while (audioRead < Globals.AudioLen)
-                    {
-                        int read = stream.Read(audioBytes, audioRead, Globals.AudioLen - audioRead);
-                        if (read == 0) throw new IOException("Connection closed before audio received");
-                        audioRead += read;
-                    }
+                        /* Read audio samples */
+                        //int audioLen = 2048; // audio data length
+                        byte[] audioBytes = new byte[Globals.AudioLen];
+                        int audioRead = 0;
+                        //AudioChunk samples = new AudioChunk(timestamp, Globals.AudioLen / 2);
+                        AudioChunk samples = new AudioChunk(timestampUs, Globals.AudioLen / 2);
+                        while (audioRead < Globals.AudioLen)
+                        {
+                            int read = stream.Read(audioBytes, audioRead, Globals.AudioLen - audioRead);
+                            if (read == 0) throw new IOException("Connection closed before audio received");
+                            audioRead += read;
+                        }
 
-                    for (int n = 0; n < samples.length; n++)
-                    {
-                        samples.samples[n] = BitConverter.ToInt16(audioBytes, n * 2);
-                        if (isLogSamples)
-                            Console.Write($"{samples.samples[n]} ");
-                    }
-                    clientChannel.sampleQueue.Enqueue(samples);
+                        for (int n = 0; n < samples.length; n++)
+                        {
+                            samples.samples[n] = BitConverter.ToInt16(audioBytes, n * 2);
+                            if (isLogSamples)
+                                Console.Write($"{samples.samples[n]} ");
+                        }
+                        clientChannel.sampleQueue.Enqueue(samples);
+                        break;
+
+
+
+                    case 'Q':
+                        {
+                            long t1 = BinaryPrimitives.ReadInt64LittleEndian(headerBytes.AsSpan(1, 8));
+                            var freq = (double)Stopwatch.Frequency;
+                            long t2 = (long)(timer.ElapsedTicks * 1_000_000.0 / freq);
+
+
+                            var reply = new byte[1 + 8 * 3];
+                            reply[0] = (byte)'R';
+                            BinaryPrimitives.WriteInt64LittleEndian(reply.AsSpan(1, 8), t1);
+                            BinaryPrimitives.WriteInt64LittleEndian(reply.AsSpan(9, 8), t2);
+
+                            long t3 = (long)(timer.ElapsedTicks * 1_000_000.0 / freq);
+                            BinaryPrimitives.WriteInt64LittleEndian(reply.AsSpan(17, 8), t3);
+
+                            try
+                            {
+                                await stream.WriteAsync(reply).ConfigureAwait(false);
+                                //Logger.I(tag, $"Replied 'R' to client {clientChannel.id}: t1={t1} t2={t2} t3={t3}");
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.E(tag, $"Write to client {clientChannel.id} failed: {ex.Message}");
+                                throw;
+                            }
+                            break;
+                        }
                 }
+                
             } // connection while loop
             Logger.I(tag, $"tcp client task with id {clientChannel.id} cancelled");
         }

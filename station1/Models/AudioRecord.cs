@@ -2,6 +2,7 @@
 using ScottPlot.WinForms;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -16,19 +17,19 @@ namespace station1.Models
         private double lastSmoothedShift = 0;
         private bool shiftsFull = false;
         public bool isFirstChannel = false;
-        public double[] shifts;
+        public double[] correlations;
         public double[] timeStamps;
 
         public double[] shiftsAvg;
 
-        private int shiftIdx = 0;
+        private int corrIdx = 0;
 
 
         private string tag;
 
         public int id = -1;
-        private double offsetY = 0;
-        private bool doSynch = true;
+        private double offsetY = 0.0;
+        //private bool doSynch = true;
         public double[] X;  // accumulated time in ms
         public double[] Y;  // accumulated audio samples
         private int chunkIdx = 0;
@@ -42,7 +43,7 @@ namespace station1.Models
             this.Y = new double[Globals.Capacity];
 
 
-            this.shifts = new double[Globals.MaxPlotHist];
+            this.correlations = new double[Globals.MaxPlotHist];
             this.timeStamps = new double[Globals.MaxPlotHist];
             this.shiftsAvg = new double[Globals.MaxPlotHist];
 
@@ -68,6 +69,12 @@ namespace station1.Models
         }
 
 
+        public void cutOffOffset()
+        {
+            double avgY = Y.Average();
+            //if (Math.Abs(avgY) > 15)
+            offsetY += Y.Average();    
+        }
 
         public void appendData(AudioChunkChannel clientChannel, double serverNowMs)
         {
@@ -80,17 +87,19 @@ namespace station1.Models
                 }
 
                 double packetStart_ms = ((double)samples.timestamp / 1000.0); //ms
-                bool synchRequired = (clientChannel.offsetMs == null) || doSynch;
-                if (synchRequired)
+
+                //double start_ms = clientChannel.accEndMs ?? (packetStart_ms);
+
+                double start_ms = packetStart_ms + clientChannel.offsetEndMs;
+
+                if(clientChannel.isExactSynchDone)
                 {
-                    // synchronise time series 
-                    //new client offset is not assigned yet.
-                    Logger.I(tag, $"Initial Synchronising client: {clientChannel.id}");
-                    clientChannel.offsetMs = serverNowMs - packetStart_ms;
-                    doSynch = false;
+                    //Logger.I(tag, "using fake time");
+                    start_ms = (double)clientChannel.accEndMs;
                 }
-                double start_ms = (double)(packetStart_ms + clientChannel.offsetMs);
-                //recntTime = start_ms;
+
+
+                    //recntTime = start_ms;
                 double dt_ms = 1 / (double)Globals.SamplingRate * 1000.0; // dt in ms
                 double stop_ms = start_ms + (dt_ms * samples.length);
 
@@ -100,42 +109,36 @@ namespace station1.Models
 
                 double[] ys = samples.samples.Select(s => (double)s - offsetY).ToArray();
                 appendChunk(xs, ys);
-
-                if (synchRequired) // normalize the data during synchronisation
-                {
-                    double avgY = Y.Average();
-                    //if (Math.Abs(avgY) > 15)
-                    offsetY += Y.Average();
-                }
+                //Logger.I(tag, $"client: {clientChannel.id}, offset: {clientChannel.offsetEndMs}");
+                clientChannel.accEndMs = start_ms + (dt_ms * samples.length);
             }
         }
 
-        public void updateShift(double timeStamp, double shift /*ms*/)
+
+        public void rememberCorrelation(double timeStamp, double corr)
         {
-            //remember time shifts
-            if (timeStamp < 100.0) return;
+            if (timeStamp < 100.0) return; // optional, see note (3)
 
-            shifts[shiftIdx] = shift; //ms to us
-            timeStamps[shiftIdx] = timeStamp;
-            shiftIdx++;
+            // write raw sample
+            correlations[corrIdx] = corr;
+            timeStamps[corrIdx] = timeStamp;
 
-            if (shiftIdx >= Globals.MaxPlotHist)
-            {
-                shiftIdx = 0;
-            }
+            // filter on the *current* slot
             double filtered;
-            if (shiftIdx >= Globals.Navg)
-                filtered = medianShifts(shifts, shiftIdx - Globals.Navg, Globals.Navg);
+            if (corrIdx >= Globals.Navg)
+                filtered = medianShifts(correlations, corrIdx - Globals.Navg, Globals.Navg);
             else
-                filtered = shift;
+                filtered = corr;
 
-            // apply exponential smoothing on top
+            // smooth and store at the SAME index
             lastSmoothedShift = smoothShift(lastSmoothedShift, filtered);
+            shiftsAvg[corrIdx] = lastSmoothedShift;
 
-            // save result for plotting / later use
-            shiftsAvg[shiftIdx] = lastSmoothedShift;
-
+            // advance ring index
+            corrIdx++;
+            if (corrIdx >= Globals.MaxPlotHist) corrIdx = 0;
         }
+
 
         private double medianShifts(double[] shifts, int startIdx, int dataPoints)
         {
@@ -150,20 +153,20 @@ namespace station1.Models
             return alpha * current + (1 - alpha) * prev;
         }
 
-        public void Synch()
-        {
-            doSynch = true;
-        }
+        //public void SynchRecord()
+        //{
+        //    Logger.W(tag, $"NOT IMPLEMENTED");
+        //}
 
 
-        public void clearShiftHistory()
+        public void clearCorrHist()
         {
-            Array.Clear(shifts, 0, shifts.Length);
+            Array.Clear(correlations, 0, correlations.Length);
             Array.Clear(timeStamps, 0, timeStamps.Length);
 
             Array.Clear(shiftsAvg, 0, shiftsAvg.Length);
 
-            shiftIdx = 0;
+            corrIdx = 0;
         }
 
 
@@ -174,12 +177,12 @@ namespace station1.Models
             scatter.LegendText = $"Client {this.id}";
 
 
-            var scatter2 = formsPlotTimeShiftsRef.Plot.Add.Scatter(this.timeStamps, this.shifts);
+            var scatter2 = formsPlotTimeShiftsRef.Plot.Add.Scatter(this.timeStamps, this.correlations);
             scatter2.LineWidth = 0;
             scatter2.LegendText = $"dT {this.id}";
 
-            var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Lollipop(this.shiftsAvg, this.timeStamps);
-
+            var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Scatter(this.timeStamps, this.shiftsAvg);
+            scatter3.MarkerSize = 0;
 
             switch (this.id)
             {
