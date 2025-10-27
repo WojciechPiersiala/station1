@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -11,8 +12,24 @@ using System.Threading.Tasks;
 
 namespace station1.Models
 {
+    public struct compPattern
+    {
+        public double stepCorr;
+        public double stepTime;
+        public double lastCompTime;
+
+        public compPattern(double stepCorr, double stepTime)
+        {
+            //Logger.S("compPatter", $"compPatter created, stepCorr: {stepCorr}, stepTime: {stepTime}");
+            this.stepCorr = stepCorr;
+            this.stepTime = stepTime;
+            this.lastCompTime = -1.0;
+        }
+    }
+
     internal class AudioChunkChannel
     {
+        private compPattern compPattern;
         public bool isExactSynch = false;
         public bool isExactSynchDone = false;
         private static string tag = "ClientChannel";
@@ -39,6 +56,42 @@ namespace station1.Models
             this.id = int.Parse(lastOctet);
             Logger.I(tag, $"Created client with id: {this.id}");
 
+
+            // todo: replace hardcoded 
+            double deltaCorr;
+            double deltaTime;
+
+            switch (id)
+            {
+                case 12:
+                    {
+                        deltaCorr = -204.0 / 1000;
+                        deltaTime = 2*96245.000;
+                        break;
+                    }
+
+                case 13:
+                    {
+                        deltaCorr = 185.0 / 1000;
+                        deltaTime = 84587.000;
+                        break;
+                    }
+
+                default: // other id (reference mic)
+                    {
+                        deltaCorr = 0.0;
+                        deltaTime = 0.0;
+                        break;
+                    }
+            }
+            Logger.I(tag, $"Using compensation pattern: dCorr={deltaCorr}, dTime={deltaTime}");
+            this.compPattern = new compPattern(deltaCorr, deltaTime);
+            tag = $"ClientChannel {this.id}";
+        }
+
+        public void resetCompPatter()
+        {
+            compPattern.lastCompTime = -1.0;
         }
 
         public void SynchRecord()
@@ -85,5 +138,23 @@ namespace station1.Models
                 offset += toSend;
             }
         }
+
+
+        public double compensateDrift(double serverNowMs)
+        {
+            if (id == 11) return 0.0; // skip for testing
+
+            double timeDiff = (compPattern.stepTime + compPattern.lastCompTime) - serverNowMs;
+            if (timeDiff < 0.0) // init comp
+            {
+                Logger.I(tag, $"{serverNowMs}, Client {id}, compensation time has elapsed, Will aplay compensation of {compPattern.stepCorr}");
+                compPattern.lastCompTime += compPattern.stepTime;
+                return (compPattern.stepCorr);
+            }
+            else
+            {
+                return 0.0;
+            }
+        } 
     }
 }

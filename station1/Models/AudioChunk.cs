@@ -11,11 +11,13 @@ namespace station1.Models
         public int length;
         public short[] samples;
         public long timestamp;
-        public AudioChunk(long timestamp, int length)
+        public long seq;
+        public AudioChunk(long timestamp, int length, long seq)
         {
             this.length = length;
             this.samples = new short[length];
             this.timestamp = timestamp;
+            this.seq = seq;
         }
     }
 }

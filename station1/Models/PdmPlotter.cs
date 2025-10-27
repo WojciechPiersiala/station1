@@ -31,15 +31,10 @@ namespace station1.Models
     }
     internal class PdmPlotter
     {
-        //private int activeClients = 0;
+        private double lastPlotUpdateMs;
+
+
         private bool initSynchDone = false;
-        //private bool[] isChanOk = new bool[3];
-        //private int tryCynchCount = 0;
-        //public static int samplingRate;
-        //public static int maxChunks; // 16 -> 1.04 s //16 old
-        //public static int audioLen;
-        //public static int SamplesPerChunk; // number of audio samples in a single chunk
-        //public static int Capacity;
 
 
         public static double yLimMin;
@@ -53,106 +48,34 @@ namespace station1.Models
         private static string exportCsvPaht = @"C:\Users\wp1\Desktop\Studia\magisterka\Acustic_source_detection\matlab\Data\";
         private Stopwatch stopWatch = Stopwatch.StartNew();
         private int countClients = 0;
+        public Locater doaLocater;
         public FormsPlot formsPlotRef; // reference to windows form plot
         public FormsPlot formsPlotCorrRef;
+        public FormsPlot formsPlot_locate;
+        public FormsPlot formsPlot_TDoA;
+        FormsPlot formsPlot_doa;
         private List<AudioChunkChannel> clientsBuffer;
         private ConcurrentDictionary<AudioChunkChannel, AudioRecord> plotBuffer = new();
         private bool doSynch = false;
         private ProcessState processState;
 
-        public PdmPlotter(FormsPlot formsPlotTimeShiftsRef, FormsPlot formsPlotRef, List<AudioChunkChannel> clientsBuffer/*, int audioLen, int maxChunks, int samplingRate*/)
+        public PdmPlotter(FormsPlot formsPlotTimeShiftsRef, FormsPlot formsPlotRef, FormsPlot formsPlot_locate, FormsPlot formsPlot_doa, FormsPlot formsPlot_TDoA,
+            List<AudioChunkChannel> clientsBuffer)
         {
             this.formsPlotCorrRef = formsPlotTimeShiftsRef;
             this.formsPlotRef = formsPlotRef;
             this.clientsBuffer = clientsBuffer;
-
+            this.formsPlot_locate = formsPlot_locate;
+            this.formsPlot_doa = formsPlot_doa;
+            this.formsPlot_TDoA = formsPlot_TDoA;
 
             PdmPlotter.yLimMin = double.MaxValue;
             PdmPlotter.yLimMax = 0;
             processState = ProcessState.INIT_SYNCH;
+            doaLocater = new Locater(formsPlot_locate, formsPlot_doa, formsPlot_TDoA);
         }
 
 
-
-        //public void manuallyChangeTimeOffset(string input, string str2look)
-        //{
-        //    int idx = str2look.Length;
-        //    int startIdx = input.IndexOf(str2look, StringComparison.OrdinalIgnoreCase);
-        //    int numStartIdx = startIdx + str2look.Length;
-
-        //    if (numStartIdx >= input.Length)
-        //    {
-        //        Logger.W(tag, "No channel number found after 'Channel'");
-        //        return;
-        //    }
-        //    char channelChar = input[numStartIdx]; // convert char to int
-        //    int chanNum = channelChar - '0';
-
-        //    int timeOffsetStrValUs = 0;
-        //    string timeOffsetStr = input.Substring(numStartIdx + 1);
-        //    try
-        //    {
-        //        timeOffsetStrValUs = int.Parse(timeOffsetStr);
-        //    }
-        //    catch (Exception)
-        //    {
-        //        Logger.W(tag, $"No valid time offset found after channel number {chanNum}");
-        //        return;
-        //    }
-
-        //    double timeOffsetStrValMs = (double)timeOffsetStrValUs / 1000.0;
-        //    Logger.I(tag, $"Adding : {timeOffsetStrValMs} ms to channel {plotBuffer.ElementAt(chanNum).Key.id}");
-        //    if (plotBuffer.Count <= chanNum)
-        //    {
-        //        Logger.W(tag, $"No channel with number {chanNum} found");
-        //        return;
-        //    }
-        //    plotBuffer.ElementAt(chanNum).Key.offsetMs += timeOffsetStrValMs;
-        //}
-
-
-
-        //public void manuallyChangeFreqOffset(string input, string str2look)
-        //{
-        //    Logger.I(tag, $"Manually changing frequency offset, input: {input}");
-        //    int idx = str2look.Length;
-        //    int startIdx = input.IndexOf(str2look, StringComparison.OrdinalIgnoreCase);
-        //    int numStartIdx = startIdx + str2look.Length;
-
-        //    if (numStartIdx >= input.Length)
-        //    {
-        //        Logger.W(tag, "No channel number found after 'Channel'");
-        //        return;
-        //    }
-        //    char channelChar = input[numStartIdx]; // convert char to int
-        //    int chanNum = channelChar - '0';
-        //    if(chanNum < 0 || chanNum > 2)
-        //    {
-        //        Logger.W(tag, $"Channel number {chanNum} is out of range, should be 0, 1 or 2");
-        //        return;
-        //    }
-
-        //    int timeOffsetStrValUs = 0;
-        //    string timeOffsetStr = input.Substring(numStartIdx + 1);
-        //    try
-        //    {
-        //        timeOffsetStrValUs = int.Parse(timeOffsetStr);
-        //    }
-        //    catch (Exception)
-        //    {
-        //        Logger.W(tag, $"No valid time offset found after channel number {plotBuffer.ElementAt(chanNum).Key.id}");
-        //        return;
-        //    }
-
-        //    double timeOffsetStrValMs = (double)timeOffsetStrValUs / 10000.0;
-        //    Logger.I(tag, $"Adding : {timeOffsetStr} : {timeOffsetStrValMs} Hz to {plotBuffer.ElementAt(chanNum).Key.id}");
-        //    if (plotBuffer.Count <= chanNum)
-        //    {
-        //        Logger.W(tag, $"No channel with number {chanNum} found");
-        //        return;
-        //    }
-        //    plotBuffer.ElementAt(chanNum).Key.offsetFreq += timeOffsetStrValMs;
-        //}
 
 
         public void Synch()
@@ -228,18 +151,15 @@ namespace station1.Models
 
             }
             double currTime = stopWatch.Elapsed.TotalMilliseconds;
-            string path = exportCsvPaht + $"{currTime.ToString()}.csv";
+            string fileName = $"{currTime.ToString().Replace(',', '_')}.csv";
+            string path = exportCsvPaht + fileName;
             File.WriteAllLines(path, lines);
 
             Logger.I(tag, $"Exporting dataset: {header} to file {currTime.ToString()}.csv");
         }
 
 
-        //public void startExactSynch()
-        //{
-        //    doSynch = true;
-        //    Logger.I(tag, $"Exact synch button pressed Starting exact synchronisation, doSynch: {doSynch}");
-        //}
+
 
 
         private void countActiveClients()
@@ -253,21 +173,7 @@ namespace station1.Models
             }
         }
 
-        //public void updageProcessState()
-        //{
-        //    if(processState == ProcessState.INIT_SYNCH)
-        //    {
-        //        //Logger.E(tag, "Initial Synchronisation not doene yet");
 
-        //    }
-        //    //else if (processState == ProcessState.EXACT_SYNCH)
-        //    //{
-        //    //    Logger.S(tag, "Exact synchronisation done, changeing state to FREQUENCH_SYNCH");
-        //    //    processState = ProcessState.FREQUENCH_SYNCH;
-        //    //}
-
-
-        //}
         public void processAudio(ref List<KeyValuePair<AudioChunkChannel, AudioRecord>> snap)
         {
 
@@ -292,7 +198,7 @@ namespace station1.Models
                 case ProcessState.NORMAL:
                     {
                         bool logSynch = false;
-                        var snapPltBuff = snap;
+                        //var snapPltBuff = snap;
 
                         if (plotBuffer.Count < 2) // check if you have enough channels to do synch
                         {
@@ -304,14 +210,14 @@ namespace station1.Models
                         /* Convert buffer to series */
                         int N = plotBuffer.Count;
                         // Reference series
-                        var (refChan, refRec) = (snapPltBuff[0].Key, snapPltBuff[0].Value);
+                        var (refChan, refRec) = (snap[0].Key, snap[0].Value);
                         var T0 = refRec.X;
                         var Y0 = refRec.Y;
 
                         /* Check if all channels are already synchronised */
                         for (int i = 1; i < N; i++) // aclulate correlation and applay time shift to each channel
                         {
-                            var (chani, reci) = (snapPltBuff[i].Key, snapPltBuff[i].Value);   //the channel to update
+                            var (chani, reci) = (snap[i].Key, snap[i].Value);   //the channel to update
                             var Ti = reci.X;
                             var Yi = reci.Y;
 
@@ -332,9 +238,10 @@ namespace station1.Models
 
 
 
-                            double corr = AudioProcessing.findTimeShiftAsync(T0, Y0, Ti, Yi, maxLagMs);
-
-
+                            ///////////////// main part ///////////////// 
+                            
+                            double corr = AudioProcessing.findTimeShiftAsync(T0, Y0, Ti, Yi, maxLagMs); // calculate 
+                            ///////////////// ///////////////// ///////////////// 
 
 
                             if (double.IsNaN(corr))
@@ -348,7 +255,8 @@ namespace station1.Models
                                 int corrUs = (int)(corr * 1000.0); //ms to us
                                 string toPlot = $"id: {chani.id}, time: {timeStampUs} us, correlation: {corrUs} us";
                                 reci.rememberCorrelation(timeStampUs, corr);
-                                Logger.I(tag, toPlot);
+                                //doaLocater.run(reci);
+                                //Logger.I(tag, toPlot);
 
                                 if (exactSynch)
                                 {
@@ -363,10 +271,10 @@ namespace station1.Models
                         if (exactSynch)
                         {
                             // Mark the reference channel as logically done
-                            snapPltBuff[0].Key.isExactSynch = true; // reference channel
+                            snap[0].Key.isExactSynch = true; // reference channel
 
                             bool allOk = true;
-                            foreach (var kvp in snapPltBuff) { // use the same stable snapshot!
+                            foreach (var kvp in snap) { // use the same stable snapshot!
                                 {
                                     if(kvp.Key.id == refChan.id)
                                     {
@@ -380,7 +288,7 @@ namespace station1.Models
                             if (allOk)
                             {
                                 Logger.I(tag, "Exact synch done");
-                                foreach (var kvp in snapPltBuff)
+                                foreach (var kvp in snap)
                                 {
                                     kvp.Key.isExactSynch = false;
                                     kvp.Key.isExactSynchDone = true;
@@ -396,22 +304,6 @@ namespace station1.Models
 
         }
 
-
-        //int N = plotBuffer.Count;
-        //// Reference series
-        //var(refChan, refRec) = (snapPltBuff[0].Key, snapPltBuff[0].Value);
-        //            var T0 = refRec.X;
-        //var Y0 = refRec.Y;
-
-        ///* Check if all channels are already synchronised */
-        //bool allChannelsSynch = true;
-        //            for (int i = 1; i<N; i++) // aclulate correlation and applay time shift to each channel
-        //            {
-        //                if (isChanOk[i])
-        //                    continue; // already ok  TODO: doesn't work
-
-
-        //                var(chani, reci) = (snapPltBuff[i].Key, snapPltBuff[i].Value);   //the channel to update
 
 
 
@@ -435,6 +327,16 @@ namespace station1.Models
         {
             exactSynch = true;
             Logger.I(tag, $"Starting exact synch");
+
+            foreach (var it in plotBuffer)
+            {
+                it.Value.clearCorrHist();
+                it.Key.resetCompPatter();
+            }
+
+            doaLocater.reset();
+                
+            
         }
         public async Task RunProgram(Form_mainDisplay refForm_MainDisplay, CancellationToken clcTok)
         {
@@ -450,7 +352,7 @@ namespace station1.Models
                 lock (clientsBuffer) snap = clientsBuffer.ToList();
                 foreach (var c in snap)
                 {
-                    AudioRecord newRecord = new AudioRecord(c.id, firstRun);
+                     AudioRecord newRecord = new AudioRecord(c.id, firstRun);
                     plotBuffer.TryAdd(c, newRecord);
 
 
@@ -467,17 +369,21 @@ namespace station1.Models
                     .OrderBy(kvp => kvp.Key.id)
                     .ToList();
 
-                //updageProcessState();
+                
                 countActiveClients();
 
-                //sendData2Clients(ref snap2);
+                
 
                 //////////////////// PROECESS AUDIO ////////////////////
                 processAudio(ref snap2);
+                
+                if(processState == ProcessState.NORMAL)
+                {
+                    doaLocater.localise(ref snap2);
+                }
+                    
+
                 ////////////////////////////////////////////////////////
-
-
-
 
 
 
@@ -503,6 +409,18 @@ namespace station1.Models
 
         private void plot(Form_mainDisplay refForm_MainDisplay)
         {
+            //double nowMs = stopWatch.Elapsed.TotalMilliseconds;
+            //if (nowMs > lastPlotUpdateMs + Globals.refreshPlotRate)
+            //{
+            //    lastPlotUpdateMs = nowMs;
+            //}
+            //else
+            //{
+            //    return; // skip update
+            //}
+
+
+
             refForm_MainDisplay.Invoke((MethodInvoker)delegate
             {
                 double currTime = stopWatch.Elapsed.TotalMilliseconds;
@@ -538,8 +456,17 @@ namespace station1.Models
                 }
             }
 
+            // Add horizontal line at y=0
+            var y0Main = formsPlotCorrRef.Plot.Add.HorizontalLine(0);
+            y0Main.Color = new ScottPlot.Color(117, 117, 117);      // gray
+            y0Main.LineWidth = 2.5f;
+
+            //formsPlot_locate.Invoke((MethodInvoker)(() => formsPlot_locate.Refresh()));
             formsPlotRef.Invoke((MethodInvoker)(() => formsPlotRef.Refresh()));
             formsPlotCorrRef.Invoke((MethodInvoker)(() => formsPlotCorrRef.Refresh()));
+
+            //formsPlot_doa.Invoke((MethodInvoker)(() => formsPlot_doa.Refresh()));
+            //formsPlot_locate.Invoke((MethodInvoker)(() => formsPlot_locate.Refresh()));
         }
 
     }

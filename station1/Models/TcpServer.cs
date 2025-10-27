@@ -30,7 +30,7 @@ namespace station1.Models
         private TcpListener server;
         private string tag = "tcpServer";
         public List<AudioChunkChannel> connectedClients { get; } = new(); // handle multiple clients
-        private const int headerLen = 9;
+        private const int headerLen = 17; // 1 + 8 + 8 (type, timestamp, seq )
         private const bool isLogSamples = false;
         private const bool isLogAudioInfo = false;
         public TcpServer(/*int audioLen*/)
@@ -179,6 +179,7 @@ namespace station1.Models
                 //char messageTypeChar = (char)headerBytes[0];
 
                 long timestampUs = BinaryPrimitives.ReadInt64LittleEndian(headerBytes.AsSpan(1, 8));
+                long seq = BinaryPrimitives.ReadInt64LittleEndian(headerBytes.AsSpan(9, 8));
                 char messageTypeChar = (char)headerBytes[0];
 
 
@@ -196,7 +197,7 @@ namespace station1.Models
                         byte[] audioBytes = new byte[Globals.AudioLen];
                         int audioRead = 0;
                         //AudioChunk samples = new AudioChunk(timestamp, Globals.AudioLen / 2);
-                        AudioChunk samples = new AudioChunk(timestampUs, Globals.AudioLen / 2);
+                        AudioChunk samples = new AudioChunk(timestampUs, Globals.AudioLen / 2, seq);
                         while (audioRead < Globals.AudioLen)
                         {
                             int read = stream.Read(audioBytes, audioRead, Globals.AudioLen - audioRead);

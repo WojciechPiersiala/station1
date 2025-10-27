@@ -2,6 +2,7 @@
 using ScottPlot.WinForms;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
 using System.Drawing;
 using System.Globalization;
@@ -12,8 +13,14 @@ using System.Threading.Tasks;
 
 namespace station1.Models
 {
+
+
     internal class AudioRecord
     {
+        //private Stopwatch stopWatch = Stopwatch.StartNew();
+        public double lastCorr = 0.0;
+        //public double lastTimeStamp = 0.0;
+        public long seq = -1;
         private double lastSmoothedShift = 0;
         private bool shiftsFull = false;
         public bool isFirstChannel = false;
@@ -33,7 +40,7 @@ namespace station1.Models
         public double[] X;  // accumulated time in ms
         public double[] Y;  // accumulated audio samples
         private int chunkIdx = 0;
-        public AudioRecord(int id, /*int Capacity,*/ bool isFirstChannel)
+        public AudioRecord(int id, bool isFirstChannel)
         {
             this.isFirstChannel = isFirstChannel;
             tag = $"AudioRecord {id}";
@@ -49,9 +56,19 @@ namespace station1.Models
 
             this.id = id;
             this.isFirstChannel = isFirstChannel;
+
         }
 
+        public void getCorrForDoa(double lastCorr)
+        {
+            if(!double.IsNaN(lastCorr))
+            {
+                this.lastCorr = lastCorr;
+                //this.lastTimeStamp = lastTimeStamp;
+                //Logger.I(tag, $"Got lastCorr for DoA: {lastCorr}");
+            }
 
+        }
         private void appendChunk(double[] xs, double[] ys)
         {
             int chunkSize = Globals.SamplesPerChunk;
@@ -109,12 +126,48 @@ namespace station1.Models
 
                 double[] ys = samples.samples.Select(s => (double)s - offsetY).ToArray();
                 appendChunk(xs, ys);
-                //Logger.I(tag, $"client: {clientChannel.id}, offset: {clientChannel.offsetEndMs}");
-                clientChannel.accEndMs = start_ms + (dt_ms * samples.length);
+                double chunkDurationMs = (dt_ms * samples.length);
+
+
+                if (seq < 0)
+                {
+                    Logger.I(tag, $"First chunk received with seq {samples.seq}");
+                    seq = samples.seq;
+                }
+                else
+                {
+                    long expectedSeq = seq + 1;
+                    long seqDiff = samples.seq - expectedSeq;
+
+                    if (seqDiff != 0)
+                    {
+                        if (seqDiff > 0)
+                        {
+                            // Missing packets
+                            Logger.W(tag, $"Missing {seqDiff} packet(s). Expected seq {expectedSeq}, got {samples.seq}");
+                            chunkDurationMs *= (seqDiff + 1); // extend time
+                        }
+                        else
+                        {
+                            // Out-of-order or duplicate
+                            Logger.W(tag, $"Out-of-order or duplicate packet. Expected {expectedSeq}, got {samples.seq}");
+                            // optional: ignore or clamp
+                            seqDiff = 0;
+                        }
+                    }
+
+                    seq = samples.seq; // update after using it
+                }
+                double compensationOffset = clientChannel.compensateDrift(serverNowMs);
+                // Update accumulated end time
+                clientChannel.accEndMs = start_ms + chunkDurationMs - compensationOffset;
             }
         }
 
 
+
+
+         
         public void rememberCorrelation(double timeStamp, double corr)
         {
             if (timeStamp < 100.0) return; // optional, see note (3)
@@ -137,6 +190,9 @@ namespace station1.Models
             // advance ring index
             corrIdx++;
             if (corrIdx >= Globals.MaxPlotHist) corrIdx = 0;
+
+            // use last correlation for DoA
+            getCorrForDoa(lastSmoothedShift);
         }
 
 
@@ -148,7 +204,7 @@ namespace station1.Models
             return (dataPoints % 2 == 0) ? (window[mid - 1] + window[mid]) / 2.0 : window[mid];
         }
 
-        private double smoothShift(double prev, double current, double alpha = 0.5)
+        private double smoothShift(double prev, double current, double alpha = 0.1)
         {
             return alpha * current + (1 - alpha) * prev;
         }
@@ -183,6 +239,7 @@ namespace station1.Models
 
             var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Scatter(this.timeStamps, this.shiftsAvg);
             scatter3.MarkerSize = 0;
+            scatter3.LineWidth = 2.5f;
 
             switch (this.id)
             {
@@ -215,6 +272,13 @@ namespace station1.Models
                     scatter3.Color = color;
                     break;
             }
+        }
+
+
+
+        public void doa()
+        {
+
         }
     }
 }

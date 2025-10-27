@@ -37,12 +37,20 @@
             splitContainer2 = new SplitContainer();
             label_serverTime = new Label();
             richTextBox_logger = new RichTextBox();
+            tabControl1 = new TabControl();
+            tabPage_Correlation = new TabPage();
             formsPlot_timeShifts = new ScottPlot.WinForms.FormsPlot();
+            tabPage_Locate = new TabPage();
+            splitContainer3 = new SplitContainer();
+            formsPlot_locate = new ScottPlot.WinForms.FormsPlot();
+            formsPlot_doa = new ScottPlot.WinForms.FormsPlot();
+            tabPage_TDoA = new TabPage();
+            formsPlot_TDoA = new ScottPlot.WinForms.FormsPlot();
             panel1 = new Panel();
+            button_ExactSynch = new Button();
             button_controls = new Button();
             button_export = new Button();
             button_synch = new Button();
-            button_ExactSynch = new Button();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
@@ -51,6 +59,14 @@
             splitContainer2.Panel1.SuspendLayout();
             splitContainer2.Panel2.SuspendLayout();
             splitContainer2.SuspendLayout();
+            tabControl1.SuspendLayout();
+            tabPage_Correlation.SuspendLayout();
+            tabPage_Locate.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)splitContainer3).BeginInit();
+            splitContainer3.Panel1.SuspendLayout();
+            splitContainer3.Panel2.SuspendLayout();
+            splitContainer3.SuspendLayout();
+            tabPage_TDoA.SuspendLayout();
             panel1.SuspendLayout();
             SuspendLayout();
             // 
@@ -138,7 +154,7 @@
             // 
             // splitContainer2.Panel2
             // 
-            splitContainer2.Panel2.Controls.Add(formsPlot_timeShifts);
+            splitContainer2.Panel2.Controls.Add(tabControl1);
             splitContainer2.Size = new Size(1204, 225);
             splitContainer2.SplitterDistance = 380;
             splitContainer2.TabIndex = 0;
@@ -163,14 +179,103 @@
             richTextBox_logger.Text = "";
             richTextBox_logger.TextChanged += richTextBox_logger_TextChanged;
             // 
+            // tabControl1
+            // 
+            tabControl1.Controls.Add(tabPage_Correlation);
+            tabControl1.Controls.Add(tabPage_Locate);
+            tabControl1.Controls.Add(tabPage_TDoA);
+            tabControl1.Dock = DockStyle.Fill;
+            tabControl1.Location = new Point(0, 0);
+            tabControl1.Name = "tabControl1";
+            tabControl1.SelectedIndex = 0;
+            tabControl1.Size = new Size(820, 225);
+            tabControl1.TabIndex = 5;
+            // 
+            // tabPage_Correlation
+            // 
+            tabPage_Correlation.Controls.Add(formsPlot_timeShifts);
+            tabPage_Correlation.Location = new Point(4, 29);
+            tabPage_Correlation.Name = "tabPage_Correlation";
+            tabPage_Correlation.Padding = new Padding(3);
+            tabPage_Correlation.Size = new Size(812, 192);
+            tabPage_Correlation.TabIndex = 0;
+            tabPage_Correlation.Text = "Correlation";
+            tabPage_Correlation.UseVisualStyleBackColor = true;
+            // 
             // formsPlot_timeShifts
             // 
             formsPlot_timeShifts.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             formsPlot_timeShifts.DisplayScale = 1.25F;
-            formsPlot_timeShifts.Location = new Point(3, 3);
+            formsPlot_timeShifts.Location = new Point(6, 6);
             formsPlot_timeShifts.Name = "formsPlot_timeShifts";
-            formsPlot_timeShifts.Size = new Size(805, 177);
+            formsPlot_timeShifts.Size = new Size(798, 145);
             formsPlot_timeShifts.TabIndex = 0;
+            // 
+            // tabPage_Locate
+            // 
+            tabPage_Locate.Controls.Add(splitContainer3);
+            tabPage_Locate.Location = new Point(4, 29);
+            tabPage_Locate.Name = "tabPage_Locate";
+            tabPage_Locate.Padding = new Padding(3);
+            tabPage_Locate.Size = new Size(812, 192);
+            tabPage_Locate.TabIndex = 1;
+            tabPage_Locate.Text = "DoA";
+            tabPage_Locate.UseVisualStyleBackColor = true;
+            // 
+            // splitContainer3
+            // 
+            splitContainer3.Dock = DockStyle.Fill;
+            splitContainer3.Location = new Point(3, 3);
+            splitContainer3.Name = "splitContainer3";
+            // 
+            // splitContainer3.Panel1
+            // 
+            splitContainer3.Panel1.Controls.Add(formsPlot_locate);
+            // 
+            // splitContainer3.Panel2
+            // 
+            splitContainer3.Panel2.Controls.Add(formsPlot_doa);
+            splitContainer3.Size = new Size(806, 186);
+            splitContainer3.SplitterDistance = 308;
+            splitContainer3.TabIndex = 0;
+            // 
+            // formsPlot_locate
+            // 
+            formsPlot_locate.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            formsPlot_locate.DisplayScale = 1.25F;
+            formsPlot_locate.Location = new Point(3, 3);
+            formsPlot_locate.Name = "formsPlot_locate";
+            formsPlot_locate.Size = new Size(302, 145);
+            formsPlot_locate.TabIndex = 1;
+            formsPlot_locate.Load += formsPlot1_Load;
+            // 
+            // formsPlot_doa
+            // 
+            formsPlot_doa.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            formsPlot_doa.DisplayScale = 1.25F;
+            formsPlot_doa.Location = new Point(3, 3);
+            formsPlot_doa.Name = "formsPlot_doa";
+            formsPlot_doa.Size = new Size(486, 145);
+            formsPlot_doa.TabIndex = 2;
+            // 
+            // tabPage_TDoA
+            // 
+            tabPage_TDoA.Controls.Add(formsPlot_TDoA);
+            tabPage_TDoA.Location = new Point(4, 29);
+            tabPage_TDoA.Name = "tabPage_TDoA";
+            tabPage_TDoA.Size = new Size(812, 192);
+            tabPage_TDoA.TabIndex = 2;
+            tabPage_TDoA.Text = "TDoA";
+            tabPage_TDoA.UseVisualStyleBackColor = true;
+            // 
+            // formsPlot_TDoA
+            // 
+            formsPlot_TDoA.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            formsPlot_TDoA.DisplayScale = 1.25F;
+            formsPlot_TDoA.Location = new Point(3, 3);
+            formsPlot_TDoA.Name = "formsPlot_TDoA";
+            formsPlot_TDoA.Size = new Size(801, 148);
+            formsPlot_TDoA.TabIndex = 1;
             // 
             // panel1
             // 
@@ -187,6 +292,17 @@
             panel1.Name = "panel1";
             panel1.Size = new Size(1204, 39);
             panel1.TabIndex = 9;
+            // 
+            // button_ExactSynch
+            // 
+            button_ExactSynch.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            button_ExactSynch.Location = new Point(948, 6);
+            button_ExactSynch.Name = "button_ExactSynch";
+            button_ExactSynch.Size = new Size(94, 29);
+            button_ExactSynch.TabIndex = 11;
+            button_ExactSynch.Text = "Exact Sync";
+            button_ExactSynch.UseVisualStyleBackColor = true;
+            button_ExactSynch.Click += button_ExactSynch_Click;
             // 
             // button_controls
             // 
@@ -221,17 +337,6 @@
             button_synch.UseVisualStyleBackColor = true;
             button_synch.Click += button_synch_Click;
             // 
-            // button_ExactSynch
-            // 
-            button_ExactSynch.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            button_ExactSynch.Location = new Point(948, 6);
-            button_ExactSynch.Name = "button_ExactSynch";
-            button_ExactSynch.Size = new Size(94, 29);
-            button_ExactSynch.TabIndex = 11;
-            button_ExactSynch.Text = "Exact Sync";
-            button_ExactSynch.UseVisualStyleBackColor = true;
-            button_ExactSynch.Click += button_ExactSynch_Click;
-            // 
             // Form_mainDisplay
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -250,6 +355,14 @@
             splitContainer2.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)splitContainer2).EndInit();
             splitContainer2.ResumeLayout(false);
+            tabControl1.ResumeLayout(false);
+            tabPage_Correlation.ResumeLayout(false);
+            tabPage_Locate.ResumeLayout(false);
+            splitContainer3.Panel1.ResumeLayout(false);
+            splitContainer3.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)splitContainer3).EndInit();
+            splitContainer3.ResumeLayout(false);
+            tabPage_TDoA.ResumeLayout(false);
             panel1.ResumeLayout(false);
             panel1.PerformLayout();
             ResumeLayout(false);
@@ -272,5 +385,13 @@
         private Button button_controls;
         public Label label_serverTime;
         private Button button_ExactSynch;
+        private TabControl tabControl1;
+        private TabPage tabPage_Correlation;
+        private TabPage tabPage_Locate;
+        private ScottPlot.WinForms.FormsPlot formsPlot_locate;
+        private SplitContainer splitContainer3;
+        private ScottPlot.WinForms.FormsPlot formsPlot_doa;
+        private TabPage tabPage_TDoA;
+        private ScottPlot.WinForms.FormsPlot formsPlot_TDoA;
     }
 }

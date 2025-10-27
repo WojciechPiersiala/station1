@@ -16,13 +16,15 @@ namespace station1.Models
         public static int SamplesPerChunk = AudioLen / 2;
         public static int Capacity = SamplesPerChunk * MaxChunks;
         
-        public static int MaxPlotHist= 10000;
+        public static int MaxPlotHist= 500;
         public static int Navg= 10;
         //double maxLag = 1.0; //ms
 
-        public static double MaxLag = 10.0; // 1ms correlation thresshold
-        public static double VolumeThresshols = 100.0;
+        public static double MaxLag = 1.5; // 1ms correlation thresshold
+        public static double VolumeThresshols = 50.0;
 
         public static bool Downsample = false;
+
+        public static int refreshPlotRate = 300; //ms
     }
 }

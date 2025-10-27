@@ -1,5 +1,6 @@
 ﻿using HarfBuzzSharp;
 using Microsoft.VisualBasic.Logging;
+using ScottPlot.WinForms;
 using station1.Models;
 using System;
 using System.Collections.Concurrent;
@@ -45,7 +46,8 @@ namespace station1.Forms
             //int samplingRate = 16000; //Hz mic frequency
 
             tcpServer = new TcpServer();
-            pdmPlotter = new PdmPlotter(formsPlot_timeShifts, formsPlot_pdm, tcpServer.connectedClients);
+            pdmPlotter = new PdmPlotter(formsPlot_timeShifts, formsPlot_pdm, formsPlot_locate, formsPlot_doa, formsPlot_TDoA,
+                tcpServer.connectedClients);
         }
 
         private void button_exit_Click(object sender, EventArgs e)
@@ -153,6 +155,11 @@ namespace station1.Forms
         private void button_ExactSynch_Click(object sender, EventArgs e)
         {
             pdmPlotter.ExactSynch();
+        }
+
+        private void formsPlot1_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }
