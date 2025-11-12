@@ -95,7 +95,7 @@ namespace station1.Models
 
         public void appendData(AudioChunkChannel clientChannel, double serverNowMs)
         {
-            while (clientChannel.sampleQueue.TryDequeue(out AudioChunk samples))
+            while (clientChannel.sampleQueue.TryDequeue(out AudioChunk samples)) // Wyciagnij następny chunk próbek
             {
                 if (samples.length != Globals.SamplesPerChunk)
                 {
@@ -103,21 +103,16 @@ namespace station1.Models
                     continue;
                 }
 
-                double packetStart_ms = ((double)samples.timestamp / 1000.0); //ms
+                double packetStart_ms = ((double)samples.timestamp / 1000.0); // Odczytaj znak czassu
 
-                //double start_ms = clientChannel.accEndMs ?? (packetStart_ms);
+                double start_ms = packetStart_ms + clientChannel.offsetEndMs; // Zastosuj offset endMs do znaku czasu pakietu
+                // Jezeli przeprowadzono dokładną synchronizację zrezygnuj z offsetu endMs i znaku czasu pakietu
+                // zamiast tego użyj skumulowanego czasu końcowego
+                if (clientChannel.isExactSynchDone) 
+                    start_ms = (double)clientChannel.accEndMs; //nowy poczatek pakietu
 
-                double start_ms = packetStart_ms + clientChannel.offsetEndMs;
-
-                if(clientChannel.isExactSynchDone)
-                {
-                    //Logger.I(tag, "using fake time");
-                    start_ms = (double)clientChannel.accEndMs;
-                }
-
-
-                    //recntTime = start_ms;
-                double dt_ms = 1 / (double)Globals.SamplingRate * 1000.0; // dt in ms
+                // wygeneruj punkty czasu dla próbek w pakiecie na podstawie poczatku pakietu i czestotliwosci probkowania
+                double dt_ms = 1 / (double)Globals.SamplingRate * 1000.0;
                 double stop_ms = start_ms + (dt_ms * samples.length);
 
                 double[] xs = Enumerable.Range(0, samples.length)
@@ -129,6 +124,7 @@ namespace station1.Models
                 double chunkDurationMs = (dt_ms * samples.length);
 
 
+                // Obsługa numerów sekwencyjnych pakietów
                 if (seq < 0)
                 {
                     Logger.I(tag, $"First chunk received with seq {samples.seq}");
@@ -143,24 +139,30 @@ namespace station1.Models
                     {
                         if (seqDiff > 0)
                         {
-                            // Missing packets
+                            // Pakiet zgubiony
                             Logger.W(tag, $"Missing {seqDiff} packet(s). Expected seq {expectedSeq}, got {samples.seq}");
-                            chunkDurationMs *= (seqDiff + 1); // extend time
+                            chunkDurationMs *= (seqDiff + 1); // Powiększ czas trwania o zgubione pakiety
                         }
                         else
                         {
-                            // Out-of-order or duplicate
+                            // Pakiet przyszedł z opóźnieniem lub jest duplikatem
                             Logger.W(tag, $"Out-of-order or duplicate packet. Expected {expectedSeq}, got {samples.seq}");
-                            // optional: ignore or clamp
                             seqDiff = 0;
                         }
                     }
 
-                    seq = samples.seq; // update after using it
+                    seq = samples.seq; // Zaktualizuj oczekiwany numer sekwencyjny
                 }
+                // Kompensacja dryfu
                 double compensationOffset = clientChannel.compensateDrift(serverNowMs);
-                // Update accumulated end time
+                compensationOffset = 0.0; // tymczasowo wyłączone
+                // Aktualizacja skumulowanego czasu końcowego
                 clientChannel.accEndMs = start_ms + chunkDurationMs - compensationOffset;
+                //if(tag == "AudioRecord 13")
+                //{
+                //    double diff = (double)((double)packetStart_ms - clientChannel.accEndMs);
+                //    Logger.I(tag, $"serverTime: {serverNowMs}, tiemstamp: {packetStart_ms}, accEndMs: {clientChannel.accEndMs}, diff = {diff}");
+                //}
             }
         }
 
@@ -191,6 +193,7 @@ namespace station1.Models
             corrIdx++;
             if (corrIdx >= Globals.MaxPlotHist) corrIdx = 0;
 
+
             // use last correlation for DoA
             getCorrForDoa(lastSmoothedShift);
         }
@@ -198,10 +201,13 @@ namespace station1.Models
 
         private double medianShifts(double[] shifts, int startIdx, int dataPoints)
         {
-            if (shifts.Length < dataPoints || startIdx + dataPoints > shifts.Length) return double.NaN;
-            var window = shifts.Skip(startIdx).Take(dataPoints).OrderBy(v => v).ToArray();
+            if (shifts.Length < dataPoints || startIdx + dataPoints > shifts.Length) 
+                return double.NaN; //niepoprawne dane
+            var window = shifts.Skip(startIdx).Take(dataPoints).OrderBy(v => v).ToArray(); //okno obliczeniowe
             int mid = dataPoints / 2;
-            return (dataPoints % 2 == 0) ? (window[mid - 1] + window[mid]) / 2.0 : window[mid];
+            if (dataPoints % 2 == 0)
+                return (window[mid - 1] + window[mid])/2.0;
+            else return window[mid];
         }
 
         private double smoothShift(double prev, double current, double alpha = 0.1)
@@ -209,10 +215,6 @@ namespace station1.Models
             return alpha * current + (1 - alpha) * prev;
         }
 
-        //public void SynchRecord()
-        //{
-        //    Logger.W(tag, $"NOT IMPLEMENTED");
-        //}
 
 
         public void clearCorrHist()
@@ -228,50 +230,47 @@ namespace station1.Models
 
         public void prepareData(ref FormsPlot formsPlotTimeShiftsRef, ref FormsPlot formsPlotRef)
         {
+            // Rebuild ordered arrays (so time always increases)
+            double[] orderedTimestamps = new double[Globals.MaxPlotHist];
+            double[] orderedShiftsAvg = new double[Globals.MaxPlotHist];
 
+            int n1 = Globals.MaxPlotHist - corrIdx;
+            Array.Copy(this.timeStamps, corrIdx, orderedTimestamps, 0, n1);
+            Array.Copy(this.shiftsAvg, corrIdx, orderedShiftsAvg, 0, n1);
+
+            if (corrIdx > 0)
+            {
+                Array.Copy(this.timeStamps, 0, orderedTimestamps, n1, corrIdx);
+                Array.Copy(this.shiftsAvg, 0, orderedShiftsAvg, n1, corrIdx);
+            }
+
+            // regular audio waveform
             var scatter = formsPlotRef.Plot.Add.Scatter(this.X, this.Y);
             scatter.LegendText = $"Client {this.id}";
 
-
+            // raw correlations (unchanged)
             var scatter2 = formsPlotTimeShiftsRef.Plot.Add.Scatter(this.timeStamps, this.correlations);
             scatter2.LineWidth = 0;
             scatter2.LegendText = $"dT {this.id}";
 
-            var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Scatter(this.timeStamps, this.shiftsAvg);
+            // ✅ FIXED: use ordered arrays for smoothed shifts
+            var scatter3 = formsPlotTimeShiftsRef.Plot.Add.Scatter(orderedTimestamps, orderedShiftsAvg);
             scatter3.MarkerSize = 0;
             scatter3.LineWidth = 2.5f;
 
+            // colors (unchanged)
+            ScottPlot.Color color;
             switch (this.id)
             {
-                case 11:
-                    var color = new ScottPlot.Color(0, 125, 0);
-                    scatter.Color = color;
-                    scatter2.Color = color;
-                    scatter3.Color = color;
-                    break;
-                case 12:
-                    //scatter.Color = new ScottPlot.Color(255, 0, 0); // Red
-                    color = new ScottPlot.Color(255, 0, 0);
-                    scatter.Color = color;
-                    scatter2.Color = color;
-                    scatter3.Color = color;
-                    break;
-                case 13:
-                    //scatter.Color = new ScottPlot.Color(0, 0, 255); // Blue
-                    color = new ScottPlot.Color(0, 0, 255);
-                    scatter.Color = color;
-                    scatter2.Color = color;
-                    scatter3.Color = color;
-                    break;
-                default:
-                    //scatter.Color = new ScottPlot.Color(0, 0, 0); // Black
-                    //var color = new ScottPlot.Color(0, 125, 0);
-                    color = new ScottPlot.Color(0, 0, 0);
-                    scatter.Color = color;
-                    scatter2.Color = color;
-                    scatter3.Color = color;
-                    break;
+                case 11: color = new ScottPlot.Color(0, 125, 0); break;
+                case 12: color = new ScottPlot.Color(255, 0, 0); break;
+                case 13: color = new ScottPlot.Color(0, 0, 255); break;
+                default: color = new ScottPlot.Color(0, 0, 0); break;
             }
+
+            scatter.Color = color;
+            scatter2.Color = color;
+            scatter3.Color = color;
         }
 
 

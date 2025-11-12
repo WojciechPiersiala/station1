@@ -99,64 +99,77 @@ namespace station1.Models
             var inv = CultureInfo.InvariantCulture;
 
             var snap = plotBuffer.Values.ToList();
-            if (snap.Count < 0)
+            if (snap.Count == 0)
             {
                 Logger.W(tag, "No data to save to csv");
                 return;
             }
+
             List<string> lines = new();
 
-
+            // ---------- HEADER ----------
             StringBuilder sbHeader = new();
             foreach (var s in snap)
             {
-                sbHeader.Append($"t{s.id},").Append($"y{s.id},").Append($"shifts{s.id},").Append($"shiftsAvg{s.id},").Append($"timeStamps{s.id},");
+                sbHeader.Append($"t{s.id},")
+                        .Append($"y{s.id},")
+                        .Append($"shifts{s.id},")
+                        .Append($"shiftsAvg{s.id},")
+                        .Append($"timeStamps{s.id},");
             }
-            sbHeader.Length--;
-            string header = sbHeader.ToString();
-            lines.Add(header);
+            sbHeader.Append("angTime,angle");  // only once at the end
+            lines.Add(sbHeader.ToString());
 
+            // ---------- DETERMINE MAX LENGTH ----------
+            int maxLen = snap.Max(s => Math.Max(s.X.Length, s.Y.Length));
+            Logger.I(tag, $"Exporting {maxLen} samples per channel");
 
-            //export shifts
-            int N = Globals.MaxPlotHist;
-            int j = 0;
-            for (int i = 0; i < Globals.Capacity; i++)
+            // ---------- BUILD CSV ----------
+            for (int i = 0; i < maxLen; i++)
             {
                 StringBuilder sb = new();
+
+                // per-channel data
                 foreach (var s in snap)
                 {
-                    //audio data
-                    string timeSampe = s.X[i].ToString("R", inv);
-                    string audioSample = s.Y[i].ToString("R", inv);
+                    string tVal = (i < s.X.Length) ? s.X[i].ToString("R", inv) : "";
+                    string yVal = (i < s.Y.Length) ? s.Y[i].ToString("R", inv) : "";
+                    sb.Append(tVal).Append(",").Append(yVal).Append(",");
 
-                    sb.Append(timeSampe).Append(",").Append(audioSample).Append(",");
-                    // shifts
-                    var activeShifts = s.correlations;
-                    //if () continue; // no shifts recorded
-                    if ((j < N) && activeShifts.Length > 0)
+                    if (i < s.correlations.Length)
                     {
-
-                        string shifts = s.correlations[j].ToString("R", inv);
-                        string shiftsAvg = s.shiftsAvg[j].ToString("R", inv);
-                        string timeStamps = s.timeStamps[j].ToString("R", inv);
-
+                        string shifts = s.correlations[i].ToString("R", inv);
+                        string shiftsAvg = s.shiftsAvg[i].ToString("R", inv);
+                        string timeStamps = s.timeStamps[i].ToString("R", inv);
                         sb.Append(shifts).Append(",").Append(shiftsAvg).Append(",").Append(timeStamps).Append(",");
-                        j++;
                     }
-
+                    else
+                    {
+                        sb.Append(",,,"); // preserve structure
+                    }
                 }
-                sb.Length--;
-                //sb.RemoveAt(sb.Count - 1);
-                lines.Add(sb.ToString());
 
+                // add angle/time only once per row
+                string angTim = (i < doaLocater.timestamps.Length)
+                    ? doaLocater.timestamps[i].ToString("R", inv)
+                    : "";
+                string angle = (i < doaLocater.angles.Length)
+                    ? doaLocater.angles[i].ToString("R", inv)
+                    : "";
+                sb.Append(angTim).Append(",").Append(angle);
+
+                lines.Add(sb.ToString());
             }
+
+            // ---------- SAVE ----------
             double currTime = stopWatch.Elapsed.TotalMilliseconds;
             string fileName = $"{currTime.ToString().Replace(',', '_')}.csv";
-            string path = exportCsvPaht + fileName;
+            string path = Path.Combine(exportCsvPaht, fileName);
             File.WriteAllLines(path, lines);
 
-            Logger.I(tag, $"Exporting dataset: {header} to file {currTime.ToString()}.csv");
+            Logger.I(tag, $"Exported dataset: {lines.Count - 1} rows to {fileName}");
         }
+
 
 
 

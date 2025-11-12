@@ -15,8 +15,8 @@ namespace station1.Models
         public static int MaxChunks = 1;
         public static int SamplesPerChunk = AudioLen / 2;
         public static int Capacity = SamplesPerChunk * MaxChunks;
-        
-        public static int MaxPlotHist= 500;
+
+        public static int MaxPlotHist = 200; //50_000;
         public static int Navg= 10;
         //double maxLag = 1.0; //ms
 

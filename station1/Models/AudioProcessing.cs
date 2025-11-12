@@ -1,4 +1,5 @@
 ﻿using HarfBuzzSharp;
+using MathNet.Numerics.IntegralTransforms;
 using Microsoft.VisualBasic.Logging;
 using OpenTK.Graphics.OpenGL;
 using System;
@@ -7,17 +8,14 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms.Design;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ToolTip;
-
-
-
-using System.Numerics;
-using MathNet.Numerics.IntegralTransforms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar;
 
 
 namespace station1.Models
@@ -218,9 +216,11 @@ namespace station1.Models
             normalize(ref t, ref y1i);
             deMean(ref t, ref y2i);
             normalize(ref t, ref y2i);
-
-            //double corr = calcCorrelation(t, y1i, y2i);
+#if USE_CORR
+            double corr = calcCorrelation(t, y1i, y2i);
+#else
             double corr = FindTimeShiftPhat( y1i, y2i, ((double)Globals.SamplingRate), maxLagMs);
+#endif
             return corr;// ms
         }
 
@@ -278,19 +278,25 @@ namespace station1.Models
 
 
 
-        public static double calcCorrelation(double[] T1, double[] Y1, double[] Y2)
+        /// <summary>
+        /// Wyznacza opoznienie wzgledem sygnalu referencyjnego, wykorzystujac prosta korelacje
+        /// </summary>
+        /// <param name="T1"> sereg czasowy </param>
+        /// <param name="Y1"> referencyjny sygnal dzwiekowy </param>
+        /// <param name="Y2"> porownywany sygnal dzwiekowy </param>
+        /// <returns>obliczone przesuniecie w czasie</returns>
+        public static double calcCorrelation(double[] T1, double[] Y1, double[] Y2) 
         {
-            double dt = T1[1] - T1[0];
-            // claculates pseudo correlation
-            int N = T1.Length; //audio chunk lenght is always the same.
+            double dt = T1[1] - T1[0]; // oblicz dt - czas trwania jednej probki
+            int N = T1.Length; // oblicz dlugosc sygnalu dzwiekowego
 
 
             double[] zeros = new double[N];
-            double[] Y2pad = zeros.Concat(Y2).ToArray().Concat(zeros).ToArray(); //padding y2 with zeros, increase the callculation window by 3 times
+            double[] Y2pad = zeros.Concat(Y2).ToArray().Concat(zeros).ToArray(); // dopelneinie sygnalu T2 zerami, trzykrotne zwiekrzenie okna obliczen
             double[] corrArray = new double[2 * N];
             double[] timeShifts = new double[corrArray.Length];
 
-            for (int i = 0; i < N * 2; i++)
+            for (int i = 0; i < N * 2; i++) // petla przez wszystkie probki
             {
                 double corr = 0;
                 for (int j = 0; j < N; j++)
@@ -304,23 +310,34 @@ namespace station1.Models
             double shiftSamples = maxIndex - N;
             double shiftTime = shiftSamples * dt;
 
-            if (saveAll)  saveTandYtoCsv(timeShifts, corrArray, "correlation");
+            if (saveAll)  saveTandYtoCsv(timeShifts, corrArray, "correlation"); // logi
             if (logAudioProcessing) Logger.I($"calculated shift time: {shiftTime} ms");
             return shiftTime;
         }
 
 
-
-        ////tmp TODO: change
+        /// <summary>
+        /// Wyznacza opoznienie wzgledem sygnalu referencyjnego, wykorzystujac prosta korelacje
+        /// </summary>
+        /// <param name="y1"> sygnal referencyjny </param>
+        /// <param name="y2"> porownywany sygnal </param>
+        /// <param name="sampleRateHz"> czestotliwosc probkowania</param>
+        /// <param name="maxLagMs"> maksymalne dopuszczalne przesuniecie</param>
+        /// <returns> przesuniecie sygnalow w ms</returns>
         public static double FindTimeShiftPhat(double[] y1, double[] y2, double sampleRateHz, double maxLagMs = 20)
         {
             int N = y1.Length;
             int M = 1;
-            while (M < 2 * N) M <<= 1;
+            while (M < 2 * N)
+                M = M * 2;
 
             var X = new Complex[M];
             var Y = new Complex[M];
-            for (int i = 0; i < N; i++) { X[i] = new Complex(y1[i], 0); Y[i] = new Complex(y2[i], 0); }
+            for (int i = 0; i < N; i++)
+            { 
+                X[i] = new Complex(y1[i], 0);
+                Y[i] = new Complex(y2[i], 0);
+            }
 
             Fourier.Forward(X, FourierOptions.NoScaling);
             Fourier.Forward(Y, FourierOptions.NoScaling);
@@ -330,12 +347,14 @@ namespace station1.Models
             {
                 Complex c = Complex.Conjugate(X[i]) * Y[i];
                 double mag = c.Magnitude;
-                R[i] = (mag > 1e-12) ? c / mag : Complex.Zero;
+                if (mag > 0.000000000001)
+                    R[i] = c / mag;
+                else
+                    R[i] = Complex.Zero;
             }
-
             Fourier.Inverse(R, FourierOptions.NoScaling);
 
-            // find peak
+            // znajdz maksimum
             int kMax = 0;
             double vMax = double.NegativeInfinity;
             for (int k = 0; k < M; k++)
@@ -344,16 +363,25 @@ namespace station1.Models
                 if (v > vMax) { vMax = v; kMax = k; }
             }
 
-            int lag = (kMax > M / 2) ? kMax - M : kMax;
+            int timeLag;
+            if (kMax > M / 2)
+                timeLag = kMax - M;
+            else
+                timeLag = kMax;
 
-            // parabolic interpolation
-            int km1 = (kMax - 1 + M) % M, kp1 = (kMax + 1) % M;
+            // interpolacja kwadratowa wokol maksimum
+            int km1 = (kMax - 1 + M) % M;
+            int kp1 = (kMax + 1) % M;
             double denom = R[km1].Real - 2 * R[kMax].Real + R[kp1].Real;
-            double frac = (Math.Abs(denom) > 1e-12) ? 0.5 * (R[km1].Real - R[kp1].Real) / denom : 0.0;
+            double fraction; // ulamkowa czesc przesuniecia miedzy sygnalami
+            if (Math.Abs(denom) > 0.000000000001)
+                fraction = 0.5 * (R[km1].Real - R[kp1].Real) / denom;
+            else
+                fraction = 0.0;
 
-            double lagSamples = lag + frac;
+            double lagSamples = timeLag + fraction;
 
-            // restrict to ±maxLagMs
+            // ogranicz do abs(maxLagMs)
             double lagMs = (lagSamples / sampleRateHz) * 1000.0;
             if (Math.Abs(lagMs) > maxLagMs)
                 return double.NaN;
@@ -373,15 +401,21 @@ namespace station1.Models
         //}
 
 
-
+        /// <summary>
+        /// Interpolacja liniowa sygnalu Y1 z punktow T1 do punktow Tq
+        /// </summary>
+        /// <param name="T1"> Orginalna seria czasowa</param>
+        /// <param name="Y1"> Orginalny sygnal dzwiekowy  </param>
+        /// <param name="Tq"> Nowa seria czasowa </param>
+        /// <returns> Sygnal audio przekonwertowany to nowej bazy czasowej </returns>
         public static double[] interploate(double[] T1, double[] Y1, double[] Tq)
         {
-            double[] Yq = new double[Tq.Length]; // quantified samples;
+            double[] Yq = new double[Tq.Length]; // skwantyfikowane probki
 
             for (int i = 0; i < Tq.Length; i++)
             {
                 double t = Tq[i];
-                // outside the range
+                // pomin probki poza zakresem
                 if (t < T1.First() || t > T1.Last())
                 {
                     Yq[i] = 0;
@@ -389,24 +423,24 @@ namespace station1.Models
                 }
 
                 int findT = Array.BinarySearch(T1, t);
-                if (findT >= 0) // exact match
+                if (findT >= 0) // dokladne dopasowanie
                 {
                     Yq[i] = Y1[findT];
                 }
-                else // interpolate
+                else // interpolacja liniowa
                 {
-                    findT = ~findT - 1; //left neighbour of insertion indes  (The index where the value would be inserted to keep the array sorted.)
+                    int insertionIndex = ~findT;      // indeks, gdzie należałoby wstawić t
+                    int leftIndex = insertionIndex - 1; // lewy sąsiad
+                    findT = leftIndex;
                     double t0 = T1[findT], t1 = T1[findT + 1];
                     double y0 = Y1[findT], y1 = Y1[findT + 1];
-                    double w = (t - t0) / (t1 - t0); // linear weight
+                    double weight = (t - t0) / (t1 - t0); // waga interpolacji
 
-                    Yq[i] = y0 + w * (y1 - y0);
+                    Yq[i] = y0 + weight * (y1 - y0);
                 }
             }
             return Yq;
         }
-
-
     }
 
 

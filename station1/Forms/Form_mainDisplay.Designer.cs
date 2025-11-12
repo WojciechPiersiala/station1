@@ -109,7 +109,7 @@
             textBox_input.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             textBox_input.Location = new Point(203, 7);
             textBox_input.Name = "textBox_input";
-            textBox_input.Size = new Size(439, 27);
+            textBox_input.Size = new Size(326, 27);
             textBox_input.TabIndex = 5;
             textBox_input.Text = "Channel1 10000";
             textBox_input.TextChanged += textBox_input_TextChanged;
@@ -156,7 +156,7 @@
             // 
             splitContainer2.Panel2.Controls.Add(tabControl1);
             splitContainer2.Size = new Size(1204, 225);
-            splitContainer2.SplitterDistance = 380;
+            splitContainer2.SplitterDistance = 390;
             splitContainer2.TabIndex = 0;
             // 
             // label_serverTime
@@ -174,7 +174,7 @@
             richTextBox_logger.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             richTextBox_logger.Location = new Point(12, 29);
             richTextBox_logger.Name = "richTextBox_logger";
-            richTextBox_logger.Size = new Size(361, 151);
+            richTextBox_logger.Size = new Size(353, 151);
             richTextBox_logger.TabIndex = 7;
             richTextBox_logger.Text = "";
             richTextBox_logger.TextChanged += richTextBox_logger_TextChanged;
@@ -188,7 +188,7 @@
             tabControl1.Location = new Point(0, 0);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
-            tabControl1.Size = new Size(820, 225);
+            tabControl1.Size = new Size(810, 225);
             tabControl1.TabIndex = 5;
             // 
             // tabPage_Correlation
@@ -197,7 +197,7 @@
             tabPage_Correlation.Location = new Point(4, 29);
             tabPage_Correlation.Name = "tabPage_Correlation";
             tabPage_Correlation.Padding = new Padding(3);
-            tabPage_Correlation.Size = new Size(812, 192);
+            tabPage_Correlation.Size = new Size(802, 192);
             tabPage_Correlation.TabIndex = 0;
             tabPage_Correlation.Text = "Correlation";
             tabPage_Correlation.UseVisualStyleBackColor = true;
@@ -208,7 +208,7 @@
             formsPlot_timeShifts.DisplayScale = 1.25F;
             formsPlot_timeShifts.Location = new Point(6, 6);
             formsPlot_timeShifts.Name = "formsPlot_timeShifts";
-            formsPlot_timeShifts.Size = new Size(798, 145);
+            formsPlot_timeShifts.Size = new Size(759, 145);
             formsPlot_timeShifts.TabIndex = 0;
             // 
             // tabPage_Locate
@@ -217,7 +217,7 @@
             tabPage_Locate.Location = new Point(4, 29);
             tabPage_Locate.Name = "tabPage_Locate";
             tabPage_Locate.Padding = new Padding(3);
-            tabPage_Locate.Size = new Size(812, 192);
+            tabPage_Locate.Size = new Size(802, 192);
             tabPage_Locate.TabIndex = 1;
             tabPage_Locate.Text = "DoA";
             tabPage_Locate.UseVisualStyleBackColor = true;
@@ -235,8 +235,8 @@
             // splitContainer3.Panel2
             // 
             splitContainer3.Panel2.Controls.Add(formsPlot_doa);
-            splitContainer3.Size = new Size(806, 186);
-            splitContainer3.SplitterDistance = 308;
+            splitContainer3.Size = new Size(796, 186);
+            splitContainer3.SplitterDistance = 304;
             splitContainer3.TabIndex = 0;
             // 
             // formsPlot_locate
@@ -245,7 +245,7 @@
             formsPlot_locate.DisplayScale = 1.25F;
             formsPlot_locate.Location = new Point(3, 3);
             formsPlot_locate.Name = "formsPlot_locate";
-            formsPlot_locate.Size = new Size(302, 145);
+            formsPlot_locate.Size = new Size(298, 145);
             formsPlot_locate.TabIndex = 1;
             formsPlot_locate.Load += formsPlot1_Load;
             // 
@@ -255,7 +255,7 @@
             formsPlot_doa.DisplayScale = 1.25F;
             formsPlot_doa.Location = new Point(3, 3);
             formsPlot_doa.Name = "formsPlot_doa";
-            formsPlot_doa.Size = new Size(486, 145);
+            formsPlot_doa.Size = new Size(480, 145);
             formsPlot_doa.TabIndex = 2;
             // 
             // tabPage_TDoA
@@ -263,7 +263,7 @@
             tabPage_TDoA.Controls.Add(formsPlot_TDoA);
             tabPage_TDoA.Location = new Point(4, 29);
             tabPage_TDoA.Name = "tabPage_TDoA";
-            tabPage_TDoA.Size = new Size(812, 192);
+            tabPage_TDoA.Size = new Size(802, 192);
             tabPage_TDoA.TabIndex = 2;
             tabPage_TDoA.Text = "TDoA";
             tabPage_TDoA.UseVisualStyleBackColor = true;
@@ -274,7 +274,7 @@
             formsPlot_TDoA.DisplayScale = 1.25F;
             formsPlot_TDoA.Location = new Point(3, 3);
             formsPlot_TDoA.Name = "formsPlot_TDoA";
-            formsPlot_TDoA.Size = new Size(801, 148);
+            formsPlot_TDoA.Size = new Size(791, 148);
             formsPlot_TDoA.TabIndex = 1;
             // 
             // panel1
@@ -296,18 +296,18 @@
             // button_ExactSynch
             // 
             button_ExactSynch.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            button_ExactSynch.Location = new Point(948, 6);
+            button_ExactSynch.Location = new Point(835, 5);
             button_ExactSynch.Name = "button_ExactSynch";
             button_ExactSynch.Size = new Size(94, 29);
             button_ExactSynch.TabIndex = 11;
-            button_ExactSynch.Text = "Exact Sync";
+            button_ExactSynch.Text = "Exact sync";
             button_ExactSynch.UseVisualStyleBackColor = true;
             button_ExactSynch.Click += button_ExactSynch_Click;
             // 
             // button_controls
             // 
             button_controls.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            button_controls.Location = new Point(648, 7);
+            button_controls.Location = new Point(535, 5);
             button_controls.Name = "button_controls";
             button_controls.Size = new Size(94, 29);
             button_controls.TabIndex = 10;
@@ -318,7 +318,7 @@
             // button_export
             // 
             button_export.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            button_export.Location = new Point(748, 6);
+            button_export.Location = new Point(635, 6);
             button_export.Name = "button_export";
             button_export.Size = new Size(94, 29);
             button_export.TabIndex = 8;
@@ -329,11 +329,11 @@
             // button_synch
             // 
             button_synch.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            button_synch.Location = new Point(848, 6);
+            button_synch.Location = new Point(735, 6);
             button_synch.Name = "button_synch";
             button_synch.Size = new Size(94, 29);
             button_synch.TabIndex = 6;
-            button_synch.Text = "Synch";
+            button_synch.Text = "Init sync";
             button_synch.UseVisualStyleBackColor = true;
             button_synch.Click += button_synch_Click;
             // 
