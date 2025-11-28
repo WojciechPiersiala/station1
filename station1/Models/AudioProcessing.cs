@@ -20,6 +20,9 @@ using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar;
 
 namespace station1.Models
 {
+    /// <summary>
+    /// Klasa statyczna do przetwarzania sygnalow audio
+    /// </summary>
     public static class AudioProcessing
     {
         private const bool saveAll = false;
@@ -28,78 +31,15 @@ namespace station1.Models
         private const bool logAudioProcessing = false;
 
 
-        //private static void if (saveAll)  saveTandYtoCsv(double[] Y, string saveFile)
-        //{
-        //    Logger.I(tag, $"Exporting data to {saveFile}");
-        //    List<string> lines = new();
-        //    var inv = CultureInfo.InvariantCulture;
-        //    int N = Y.Length;
-        //    StringBuilder sb = new();
-
-        //    for (int i = 0; i < N; i++)
-        //    {
-        //        string audioSample = Y[i].ToString("R", inv);
-        //        sb.Append(audioSample).Append(",");
-        //    }
-
-
-        //    sb.Length--;
-        //    lines.Add(sb.ToString());
-        //    string path = exportCsvPath + saveFile + ".csv";
-        //    File.WriteAllLines(path, lines);
-        //}
-
-
-
-        //public void ExportData()
-        //{
-        //    Logger.I(tag, "Exporting data");
-        //    var inv = CultureInfo.InvariantCulture;
-
-        //    var snap = plotBuffer.Values.ToList();
-        //    if (snap.Count < 0)
-        //    {
-        //        Logger.W(tag, "No data to save to csv");
-        //        return;
-        //    }
-        //    List<string> lines = new();
-
-
-        //    StringBuilder sbHeader = new();
-        //    foreach (var s in snap)
-        //    {
-        //        sbHeader.Append($"t{s.id},").Append($"y{s.id},");
-        //    }
-        //    sbHeader.Length--;
-        //    string header = sbHeader.ToString();
-        //    lines.Add(header);
-
-        //    for (int i = 0; i < Capacity; i++)
-        //    {
-        //        StringBuilder sb = new();
-        //        foreach (var s in snap)
-        //        {
-        //            string timeSampe = s.X[i].ToString("R", inv);
-        //            string audioSample = s.Y[i].ToString("R", inv);
-        //            sb.Append(timeSampe).Append(",").Append(audioSample).Append(",");
-        //        }
-        //        sb.Length--;
-        //        //sb.RemoveAt(sb.Count - 1);
-        //        lines.Add(sb.ToString());
-
-        //    }
-        //    double currTime = stopWatch.Elapsed.TotalMilliseconds;
-        //    string path = exportCsvPaht + $"{currTime.ToString()}.csv";
-        //    File.WriteAllLines(path, lines);
-
-        //    Logger.I(tag, $"Exporting dataset: {header} to file {currTime.ToString()}.csv");
-        //}
-
-
-
+        /// <summary>
+        /// Eksportuje dane T i Y do pliku CSV
+        /// </summary>
+        /// <param name="T"></param>
+        /// <param name="Y"></param>
+        /// <param name="saveFile"></param>
         public static void saveTandYtoCsv(double[] T, double[] Y, string saveFile)
         {
-            if(logAudioProcessing) Logger.I(tag, $"Exporting data to {saveFile}");
+            if (logAudioProcessing) Logger.I(tag, $"Exporting data to {saveFile}");
             List<string> lines = new();
             var inv = CultureInfo.InvariantCulture;
             int N = Y.Length;
@@ -118,7 +58,11 @@ namespace station1.Models
             File.WriteAllLines(path, lines);
         }
 
-
+        /// <summary>
+        /// Prymitywna metoda do usuwania szumow z sygnalu
+        /// </summary>
+        /// <param name="Y1"></param>
+        /// <param name="Y2"></param>
         private static void trimNoise(ref double[] Y1, ref double[] Y2)
         {
             const int cutOffAmp = 300;
@@ -132,6 +76,11 @@ namespace station1.Models
             }
         }
 
+        /// <summary>
+        /// Fukcja helpter do sortowania tablic T i Y
+        /// </summary>
+        /// <param name="T"></param>
+        /// <param name="Y"></param>
         public static void sortAudio(double[] T, double[] Y)
         {
             Array.Sort(T, Y);
@@ -139,12 +88,18 @@ namespace station1.Models
 
 
 
-
+        /// <summary>
+        /// Funkcja wyznaczajaca przesuniecie czasowe miedzy dwoma sygnalami audio
+        /// </summary>
+        /// <param name="T1"> Czas sygnalu referencyjnego </param>
+        /// <param name="Y1"> Sygnal referencyjny </param>
+        /// <param name="T2"> Czas sygnalu pomiarowego </param>
+        /// <param name="Y2"> Sygnal pomiarowy </param>
+        /// <param name="maxLagMs"> Maksymalne dopuszczalne opoxnienie </param>
+        /// <param name="clcTok"> czncelToken </param>
+        /// <returns></returns>
         public static double findTimeShiftAsync(double[] T1, double[] Y1, double[] T2, double[] Y2, double maxLagMs = 20, CancellationToken clcTok = default)
         {
-
-            //trimNoise(ref Y1, ref Y2);  //tmp
-
             double Y1max = Y1.Max();
             double Y2max = Y2.Max();
             double minThresshold = Globals.VolumeThresshols;
@@ -154,78 +109,73 @@ namespace station1.Models
                 return double.NaN;
             }
 
-            if (saveAll)  saveTandYtoCsv(T1, Y1, "t1y1unordered");
-            if (saveAll)  saveTandYtoCsv(T2, Y2, "t2y2unordered");
-            // sort unordered data
+            if (saveAll) saveTandYtoCsv(T1, Y1, "t1y1unordered");
+            if (saveAll) saveTandYtoCsv(T2, Y2, "t2y2unordered");
+            // Sortowanie danych
             if (logAudioProcessing) Logger.I(tag, "Sorting data...");
-            //sortAudio(T1, Y1);
-            //sortAudio(T2, Y2);
 
-
+            /* Rozwijanie bufora kolowego */
             LinearizeRingInPlace(T1, Y1);
             LinearizeRingInPlace(T2, Y2);
 
-            if (saveAll)  saveTandYtoCsv(T1, Y1, "t1y1ordered");
-            if (saveAll)  saveTandYtoCsv(T2, Y2, "t2y2ordered");
-            // Resample to uniform grid 
-            // Build a common uniform time grid over the overlap
+            if (saveAll) saveTandYtoCsv(T1, Y1, "t1y1ordered");
+            if (saveAll) saveTandYtoCsv(T2, Y2, "t2y2ordered");
+
+            // ZMiana bazy czasowej na wspolna
             double Tmax = Math.Max(T1.Max(), T2.Max());
             double Tmin = Math.Min(T1.Min(), T2.Min());
 
             double measureWindow = Tmax - Tmin;
-            if (measureWindow > Globals.AudioLen*4)
+            if (measureWindow > Globals.AudioLen * 4)
             {
                 Logger.W(tag, $"Very large measure window, signals may not overlap. Measure window: {measureWindow} ms > {Globals.AudioLen * 4} ms ");
                 return double.NaN;
             }
-            //else
-            //{
-            //    Logger.I(tag, $"Measure window OK: {measureWindow} ms > {Globals.AudioLen * 4} ms ");
-            //}
 
-            //Logger.I(tag, $"Measure window: {measureWindow} ms");
+            // Sygnaly sie nie pokrywaja
             if (Tmax < Tmin)
             {
                 if (logAudioProcessing) Logger.E(tag, "No overlap between samples");
-                // TODO: ADD ERROR
             }
 
-            //Choose grid step as the finer of the two median spacings
             double dt1 = T1[1] - T1[0];
             double dt2 = T2[1] - T2[0];
 
-            //double dt1 = T1.Average();
-            //double dt2 = T2.Average();
+            double dt = Math.Min(dt1, dt2); // jaki jest interwal probkowania
 
-            double dt = Math.Min(dt1, dt2); // get the sample time
-
-            if(Globals.Downsample)
-                dt *= Globals.DownsampleFact; // downsample to speed up the calculations, 8 is arbitrary
+            if (Globals.Downsample)
+                dt *= Globals.DownsampleFact; // downsample, nie dziala idealnie
 
             int n = (int)Math.Floor((Tmax - Tmin) / dt) + 1;
-            double[] t = Enumerable.Range(0, n).Select(i => Tmin + i * dt).ToArray(); //uniform time series combaining T1 and T2, used for interpolation
+            double[] t = Enumerable.Range(0, n).Select(i => Tmin + i * dt).ToArray(); //jednorodna siatka czasowa
             if (logAudioProcessing) Logger.I(tag, "Interpolating data...");
             //Interpolate onto the common grid
             double[] y1i = interploate(T1, Y1, t);
             double[] y2i = interploate(T2, Y2, t);
-            if (saveAll)  saveTandYtoCsv(t, y1i, "ty1interpolated");
-            if (saveAll)  saveTandYtoCsv(t, y2i, "ty2interpolated");
+            if (saveAll) saveTandYtoCsv(t, y1i, "ty1interpolated");
+            if (saveAll) saveTandYtoCsv(t, y2i, "ty2interpolated");
             if (logAudioProcessing) Logger.I(tag, "Calculating crosscorelation data...");
 
+            // usun srednia i znormalizuj
             deMean(ref t, ref y1i);
             normalize(ref t, ref y1i);
             deMean(ref t, ref y2i);
             normalize(ref t, ref y2i);
-#if USE_CORR
+#if USE_CORR    
+            // normlana korelacja, nie dziala dobrze przy szumach
             double corr = calcCorrelation(t, y1i, y2i);
 #else
-            double corr = FindTimeShiftPhat( y1i, y2i, ((double)Globals.SamplingRate), maxLagMs);
+            double corr = FindTimeShiftPhat(y1i, y2i, ((double)Globals.SamplingRate), maxLagMs);
 #endif
             return corr;// ms
         }
 
-    
-        public static void deMean(ref double[]T, ref double[] Y)
+        /// <summary>
+        ///  Usuwa stala skladowa sygnalu
+        /// </summary>
+        /// <param name="T"></param>
+        /// <param name="Y"></param>
+        public static void deMean(ref double[] T, ref double[] Y)
         {
             double mean = 0;
             for (int i = 0; i < Y.Length; i++)
@@ -236,6 +186,11 @@ namespace station1.Models
                 Y[i] -= mean;
         }
 
+        /// <summary>
+        /// Normalizuje syggnal
+        /// </summary>
+        /// <param name="T"></param>
+        /// <param name="Y"></param>
         public static void normalize(ref double[] T, ref double[] Y)
         {
             double max = Math.Abs(Y[0]);
@@ -250,19 +205,21 @@ namespace station1.Models
         }
 
 
-
+        /// <summary>
+        /// Odwijanie bofura kolowego
+        /// </summary>
+        /// <param name="T"></param>
+        /// <param name="Y"></param>
         public static void LinearizeRingInPlace(double[] T, double[] Y)
         {
-            // Find first point where time decreases -> wrap pivot
             int n = T.Length;
             int pivot = 0;
             for (int i = 1; i < n; i++)
             {
                 if (T[i] < T[i - 1]) { pivot = i; break; }
             }
-            if (pivot == 0) return; // already linear
+            if (pivot == 0) return; // juz zrobione
 
-            // Rotate [pivot..n-1] + [0..pivot-1] into a contiguous view
             var t = new double[n];
             var y = new double[n];
 
@@ -285,7 +242,7 @@ namespace station1.Models
         /// <param name="Y1"> referencyjny sygnal dzwiekowy </param>
         /// <param name="Y2"> porownywany sygnal dzwiekowy </param>
         /// <returns>obliczone przesuniecie w czasie</returns>
-        public static double calcCorrelation(double[] T1, double[] Y1, double[] Y2) 
+        public static double calcCorrelation(double[] T1, double[] Y1, double[] Y2)
         {
             double dt = T1[1] - T1[0]; // oblicz dt - czas trwania jednej probki
             int N = T1.Length; // oblicz dlugosc sygnalu dzwiekowego
@@ -310,7 +267,7 @@ namespace station1.Models
             double shiftSamples = maxIndex - N;
             double shiftTime = shiftSamples * dt;
 
-            if (saveAll)  saveTandYtoCsv(timeShifts, corrArray, "correlation"); // logi
+            if (saveAll) saveTandYtoCsv(timeShifts, corrArray, "correlation"); // logi
             if (logAudioProcessing) Logger.I($"calculated shift time: {shiftTime} ms");
             return shiftTime;
         }
@@ -334,7 +291,7 @@ namespace station1.Models
             var X = new Complex[M];
             var Y = new Complex[M];
             for (int i = 0; i < N; i++)
-            { 
+            {
                 X[i] = new Complex(y1[i], 0);
                 Y[i] = new Complex(y2[i], 0);
             }
@@ -390,17 +347,6 @@ namespace station1.Models
         }
 
 
-
-
-        //public static double resampleToUniformGrid(double[] T1, double[] Y1, double[] T2, double[] Y2)
-        //{
-
-
-        //    //Cross - correlation to get lag in samples on this grid
-        //    return 0.0;
-        //}
-
-
         /// <summary>
         /// Interpolacja liniowa sygnalu Y1 z punktow T1 do punktow Tq
         /// </summary>
@@ -429,8 +375,8 @@ namespace station1.Models
                 }
                 else // interpolacja liniowa
                 {
-                    int insertionIndex = ~findT;      // indeks, gdzie należałoby wstawić t
-                    int leftIndex = insertionIndex - 1; // lewy sąsiad
+                    int insertionIndex = ~findT;      // indeks, gdzie nalezaloby wstawic t
+                    int leftIndex = insertionIndex - 1; // lewy sasiad
                     findT = leftIndex;
                     double t0 = T1[findT], t1 = T1[findT + 1];
                     double y0 = Y1[findT], y1 = Y1[findT + 1];
@@ -442,6 +388,4 @@ namespace station1.Models
             return Yq;
         }
     }
-
-
 }

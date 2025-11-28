@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace station1.Models
 {
+    /// <summary>
+    /// Klasa do logowania informacji do RichTextBoxa i do odzielnej konsoli.
+    /// </summary>
     internal class Logger
     {
         private RichTextBox textBoxRef;

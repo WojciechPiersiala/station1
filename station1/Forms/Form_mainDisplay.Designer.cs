@@ -199,7 +199,7 @@
             tabPage_Correlation.Padding = new Padding(3);
             tabPage_Correlation.Size = new Size(802, 192);
             tabPage_Correlation.TabIndex = 0;
-            tabPage_Correlation.Text = "Correlation";
+            tabPage_Correlation.Text = "TDoA Lag";
             tabPage_Correlation.UseVisualStyleBackColor = true;
             // 
             // formsPlot_timeShifts
@@ -219,7 +219,7 @@
             tabPage_Locate.Padding = new Padding(3);
             tabPage_Locate.Size = new Size(802, 192);
             tabPage_Locate.TabIndex = 1;
-            tabPage_Locate.Text = "DoA";
+            tabPage_Locate.Text = "DoA Far";
             tabPage_Locate.UseVisualStyleBackColor = true;
             // 
             // splitContainer3
@@ -265,7 +265,7 @@
             tabPage_TDoA.Name = "tabPage_TDoA";
             tabPage_TDoA.Size = new Size(802, 192);
             tabPage_TDoA.TabIndex = 2;
-            tabPage_TDoA.Text = "TDoA";
+            tabPage_TDoA.Text = "TDoA Close";
             tabPage_TDoA.UseVisualStyleBackColor = true;
             // 
             // formsPlot_TDoA

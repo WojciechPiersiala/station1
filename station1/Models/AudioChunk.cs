@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace station1.Models
 {
+    /// <summary>
+    /// Struktura przechowujaca kawalek danych audio
+    /// </summary>
+    /// <remarks> uzywana w kolejce pakietow audio, jest zdefiniowana tak samo w kliencie </remarks>
     internal struct AudioChunk
     {
         public int length;

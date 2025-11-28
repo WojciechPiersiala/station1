@@ -19,29 +19,29 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace station1.Models
 {
+    /// <summary>
+    /// Klasa serwera TCP odbierajacego dane audio od klientow
+    /// </summary>
     internal class TcpServer
     {
-        //private int audioLen = 2048;
-        //private int audioLen;
-        //private int audioLenSamples;
-        private const double clientTimeout = 10000.0; // client timeout in ms
-        //private Logger log;
-        Stopwatch timer; // main timer
+
+        private const double clientTimeout = 10000.0;
+        Stopwatch timer; // glowny timer
         private TcpListener server;
         private string tag = "tcpServer";
-        public List<AudioChunkChannel> connectedClients { get; } = new(); // handle multiple clients
-        private const int headerLen = 17; // 1 + 8 + 8 (type, timestamp, seq )
+        public List<AudioChunkChannel> connectedClients { get; } = new();
+        private const int headerLen = 17;
         private const bool isLogSamples = false;
         private const bool isLogAudioInfo = false;
-        public TcpServer(/*int audioLen*/)
+        public TcpServer()
         {
-            //this.audioLen = audioLen;
-            //this.audioLenSamples = this.audioLen*2; // 2 bytes per sample (16 bit)
             timer = Stopwatch.StartNew();
             printIp();
         }
 
-
+        /// <summary>
+        /// Loguje adresy IP urzadzenia
+        /// </summary>
         private void printIp()
         {
             string hostName = Dns.GetHostName();
@@ -54,6 +54,11 @@ namespace station1.Models
 
         }
 
+        /// <summary>
+        /// Watek monitorujacy polaczenia z klientami
+        /// </summary>
+        /// <param name="clcTok"></param>
+        /// <returns></returns>
         public async Task MonitorConnections(CancellationToken clcTok)
         {
             while (!clcTok.IsCancellationRequested)
@@ -79,20 +84,24 @@ namespace station1.Models
                         tcpClient?.Close();
                         tcpClient?.Dispose();
                         connectedClients.Remove(cc);
-                        break; // break foreach to avoid collection modification error
+                        break;
                     }
                 }
-                await Task.Delay(1000, clcTok); //refresh rate
+                await Task.Delay(1000, clcTok);
             }
         }
 
 
+        /// <summary>
+        /// Watek serwera TCP nasluchujacy na polaczenia od klientow
+        /// </summary>
+        /// <param name="clcTok"></param>
+        /// <returns> Ciagle chodzi w tle. Jak polaczy sie nowy klient. To tworzy dla niego nowy watek HandleClient </returns>
         public async Task ListenTcp(CancellationToken clcTok)
         {
             server = null;
             try
             {
-                /* start server */
                 var ipEndPoint = new IPEndPoint(IPAddress.Any, 5050);
                 server = new TcpListener(ipEndPoint);
                 Logger.I(tag, $"Listener starting ...");
@@ -113,7 +122,7 @@ namespace station1.Models
                     clientChannel.clcTokenSrc = new CancellationTokenSource();
 
                     _ = Task.Run(() => HandleClient(clientChannel, clientChannel.clcTokenSrc.Token));
-                } // server while loop
+                } // petla while
 
             }
             catch (ObjectDisposedException)
@@ -131,6 +140,10 @@ namespace station1.Models
         }
 
 
+        /// <summary>
+        /// Zatrzymaj wszystko
+        /// </summary>
+        /// remarks>Polaczone z przyciskiem </remarks>
         public void StopTcp()
         {
             foreach (var cc in connectedClients)
@@ -157,14 +170,20 @@ namespace station1.Models
         }
 
 
+        /// <summary>
+        /// Obsluga klienta TCP
+        /// </summary>
+        /// <param name="clientChannel"></param>
+        /// <param name="clcTok"></param>
+        /// <returns></returns>
+        /// <exception cref="IOException"></exception>
         public async Task HandleClient(AudioChunkChannel clientChannel, CancellationToken clcTok)
         {
             Logger.I(tag, $"tcp client task with id {clientChannel.id} started");
             NetworkStream stream = clientChannel.tcpClient.GetStream();
-            //var header = new byte[1];
+
             while (!clcTok.IsCancellationRequested)
             {
-                /* Read header */
                 byte[] headerBytes = new byte[headerLen];
                 int headerRead = 0;
                 while (headerRead < headerLen)
@@ -174,16 +193,14 @@ namespace station1.Models
                     if (read == 0) throw new IOException("Connection closed before header received");
                     headerRead += read;
                 }
-                //int timestamp = BitConverter.ToInt32(headerBytes, 1);
-                ////long timestamp = BinaryPrimitives.ReadInt64BigEndian(headerBytes.AsSpan(1, 8));
-                //char messageTypeChar = (char)headerBytes[0];
+
 
                 long timestampUs = BinaryPrimitives.ReadInt64LittleEndian(headerBytes.AsSpan(1, 8));
                 long seq = BinaryPrimitives.ReadInt64LittleEndian(headerBytes.AsSpan(9, 8));
                 char messageTypeChar = (char)headerBytes[0];
 
 
-                switch(messageTypeChar) //Audio
+                switch (messageTypeChar) //Audio
                 {
                     case 'A': // Audio data
                         if (isLogAudioInfo)
@@ -191,12 +208,9 @@ namespace station1.Models
                             Logger.I(tag, $"{messageTypeChar}: {timestampUs}");
                         }
 
-
-                        /* Read audio samples */
-                        //int audioLen = 2048; // audio data length
                         byte[] audioBytes = new byte[Globals.AudioLen];
                         int audioRead = 0;
-                        //AudioChunk samples = new AudioChunk(timestamp, Globals.AudioLen / 2);
+
                         AudioChunk samples = new AudioChunk(timestampUs, Globals.AudioLen / 2, seq);
                         while (audioRead < Globals.AudioLen)
                         {
@@ -216,7 +230,7 @@ namespace station1.Models
 
 
 
-                    case 'Q':
+                    case 'Q': //synchronizacja ntp
                         {
                             long t1 = BinaryPrimitives.ReadInt64LittleEndian(headerBytes.AsSpan(1, 8));
                             var freq = (double)Stopwatch.Frequency;
@@ -234,7 +248,7 @@ namespace station1.Models
                             try
                             {
                                 await stream.WriteAsync(reply).ConfigureAwait(false);
-                                //Logger.I(tag, $"Replied 'R' to client {clientChannel.id}: t1={t1} t2={t2} t3={t3}");
+                                if (false) Logger.I(tag, $"Replied 'R' to client {clientChannel.id}: t1={t1} t2={t2} t3={t3}");
                             }
                             catch (Exception ex)
                             {
@@ -244,7 +258,7 @@ namespace station1.Models
                             break;
                         }
                 }
-                
+
             } // connection while loop
             Logger.I(tag, $"tcp client task with id {clientChannel.id} cancelled");
         }

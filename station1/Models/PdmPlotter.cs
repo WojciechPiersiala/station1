@@ -24,11 +24,18 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace station1.Models
 {
+    /// <summary>
+    /// Stany synchronizacji
+    /// </summary>
     enum ProcessState
     {
         INIT_SYNCH,
         NORMAL
     }
+
+    /// <summary>
+    /// Klasa zajmuje sie rysowaniem wykresow i ganizacja danych do rysowania
+    /// </summary>
     internal class PdmPlotter
     {
         private double lastPlotUpdateMs;
@@ -40,25 +47,34 @@ namespace station1.Models
         public static double yLimMin;
         public static double yLimMax;
 
-        public static double yLimMinCorr= 0;
+        public static double yLimMinCorr = 0;
         public static double yLimMaxCorr = 1;
         public bool exactSynch = false;
         private static string tag = "plotter";
 
-        private static string exportCsvPaht = @"C:\Users\wp1\Desktop\Studia\magisterka\Acustic_source_detection\matlab\Data\";
+        private static string exportCsvPaht = Globals.exportCsvPaht;
         private Stopwatch stopWatch = Stopwatch.StartNew();
         private int countClients = 0;
         public Locater doaLocater;
-        public FormsPlot formsPlotRef; // reference to windows form plot
-        public FormsPlot formsPlotCorrRef;
-        public FormsPlot formsPlot_locate;
-        public FormsPlot formsPlot_TDoA;
+        public FormsPlot formsPlotRef;      //Gorne okno z danumi z mikrofonow
+        public FormsPlot formsPlotCorrRef; // Dolne okno z opoznieniami
+        public FormsPlot formsPlot_locate;  //Doa
+        public FormsPlot formsPlot_TDoA;    //wykres ze strzalka
         FormsPlot formsPlot_doa;
-        private List<AudioChunkChannel> clientsBuffer;
-        private ConcurrentDictionary<AudioChunkChannel, AudioRecord> plotBuffer = new();
+        private List<AudioChunkChannel> clientsBuffer;  // bufor z aktualnymi klientami
+        private ConcurrentDictionary<AudioChunkChannel, AudioRecord> plotBuffer = new();    // Dictionary z klientami i nagraniami (wektory X i Y)
         private bool doSynch = false;
         private ProcessState processState;
 
+        /// <summary>
+        /// Konstruktor klasy PdmPlotter
+        /// </summary>
+        /// <param name="formsPlotTimeShiftsRef">   wykres  </param>
+        /// <param name="formsPlotRef"> wykres  </param>
+        /// <param name="formsPlot_locate"> wykres  </param>
+        /// <param name="formsPlot_doa"> wykres  </param>
+        /// <param name="formsPlot_TDoA">wykres </param>
+        /// <param name="clientsBuffer">wektor z klilentami</param>
         public PdmPlotter(FormsPlot formsPlotTimeShiftsRef, FormsPlot formsPlotRef, FormsPlot formsPlot_locate, FormsPlot formsPlot_doa, FormsPlot formsPlot_TDoA,
             List<AudioChunkChannel> clientsBuffer)
         {
@@ -77,11 +93,12 @@ namespace station1.Models
 
 
 
-
+        /// <summary>
+        /// Synchronizacja wstepna
+        /// </summary>
         public void Synch()
         {
             Logger.I(tag, "Starting initial synchronisation of all clients");
-            //doSynch = true;
             foreach (var it in plotBuffer)
             {
                 it.Key.SynchRecord();
@@ -93,6 +110,11 @@ namespace station1.Models
         }
 
 
+        /// <summary>
+        /// Eksportuje dane do pliku csv
+        /// </summary>
+        /// <remarks> Dane uzywane sa przez matlab do analizy pozniejszej </remarks>
+        /// /// <remarks> Zapisuje raw data, opoznienia i kat doa </remarks>
         public void ExportData()
         {
             Logger.I(tag, "Exporting data");
@@ -107,7 +129,6 @@ namespace station1.Models
 
             List<string> lines = new();
 
-            // ---------- HEADER ----------
             StringBuilder sbHeader = new();
             foreach (var s in snap)
             {
@@ -117,19 +138,15 @@ namespace station1.Models
                         .Append($"shiftsAvg{s.id},")
                         .Append($"timeStamps{s.id},");
             }
-            sbHeader.Append("angTime,angle");  // only once at the end
+            sbHeader.Append("angTime,angle");
             lines.Add(sbHeader.ToString());
-
-            // ---------- DETERMINE MAX LENGTH ----------
             int maxLen = snap.Max(s => Math.Max(s.X.Length, s.Y.Length));
             Logger.I(tag, $"Exporting {maxLen} samples per channel");
 
-            // ---------- BUILD CSV ----------
             for (int i = 0; i < maxLen; i++)
             {
                 StringBuilder sb = new();
 
-                // per-channel data
                 foreach (var s in snap)
                 {
                     string tVal = (i < s.X.Length) ? s.X[i].ToString("R", inv) : "";
@@ -145,11 +162,10 @@ namespace station1.Models
                     }
                     else
                     {
-                        sb.Append(",,,"); // preserve structure
+                        sb.Append(",,,");
                     }
                 }
 
-                // add angle/time only once per row
                 string angTim = (i < doaLocater.timestamps.Length)
                     ? doaLocater.timestamps[i].ToString("R", inv)
                     : "";
@@ -161,7 +177,6 @@ namespace station1.Models
                 lines.Add(sb.ToString());
             }
 
-            // ---------- SAVE ----------
             double currTime = stopWatch.Elapsed.TotalMilliseconds;
             string fileName = $"{currTime.ToString().Replace(',', '_')}.csv";
             string path = Path.Combine(exportCsvPaht, fileName);
@@ -174,7 +189,9 @@ namespace station1.Models
 
 
 
-
+        /// <summary>
+        /// Zlicza polaczonych klientow
+        /// </summary>
         private void countActiveClients()
         {
             int conCount = plotBuffer.Count;
@@ -187,62 +204,59 @@ namespace station1.Models
         }
 
 
+        /// <summary>
+        /// Glowna petla programu
+        /// </summary>
+        /// <param name="snap"></param>
         public void processAudio(ref List<KeyValuePair<AudioChunkChannel, AudioRecord>> snap)
         {
 
             switch (processState)
             {
-                case ProcessState.INIT_SYNCH:
-                    //foreach (var it in plotBuffer)
-                    //{
-                    //    it.Value.cutOffOffset();
-                    //}
+                case ProcessState.INIT_SYNCH: // wstpena synchronizacja
                     if (initSynchDone && (plotBuffer.Count > 1))
                     {
                         Logger.S(tag, "Initial synchronisation done, changing state to NORMAL");
                         processState = ProcessState.NORMAL;
 
                     }
-                    //Logger.S(tag, "Initial synchronisation done, changing state to NORMAL");
-                    //processState = ProcessState.NORMAL;
+
                     break;
 
 
-                case ProcessState.NORMAL:
+                case ProcessState.NORMAL: // program dziala normalnie
                     {
                         bool logSynch = false;
-                        //var snapPltBuff = snap;
 
-                        if (plotBuffer.Count < 2) // check if you have enough channels to do synch
+                        if (plotBuffer.Count < 2)
                         {
                             if (logSynch) Logger.W(tag, $"Exact Synchronisation stopped, not enough chnnels, only{plotBuffer.Count} channels");
                             processState = ProcessState.INIT_SYNCH;
                             break;
                         }
 
-                        /* Convert buffer to series */
                         int N = plotBuffer.Count;
-                        // Reference series
+
+                        // mikrofon referencyjny
                         var (refChan, refRec) = (snap[0].Key, snap[0].Value);
                         var T0 = refRec.X;
                         var Y0 = refRec.Y;
 
-                        /* Check if all channels are already synchronised */
-                        for (int i = 1; i < N; i++) // aclulate correlation and applay time shift to each channel
+                        /* Sprawdz czy kazdy klient zostal zsynchronizowany */
+                        for (int i = 1; i < N; i++) // dodaj aktualne opoznienei do offsetu. Dla kazdego klienta
                         {
-                            var (chani, reci) = (snap[i].Key, snap[i].Value);   //the channel to update
+                            var (chani, reci) = (snap[i].Key, snap[i].Value);   // wyciagnij kanal
                             var Ti = reci.X;
                             var Yi = reci.Y;
 
-                            //double maxLagMs = double.MaxValue; //ms
 
-                            double maxLagMs = Globals.MaxLag;
-                            if(exactSynch)
+                            double maxLagMs = Globals.MaxLag; // uzywaj limitu opoznienia
+                            if (exactSynch)
                             {
-                                maxLagMs = double.MaxValue; // for exact synch use full range
+                                maxLagMs = double.MaxValue; // bez limitu, jak jest synchronizacja
                             }
 
-                            //data validation
+                            //sprawdz dane
                             if (Y0 == null || Yi == null || Y0.Length < 2 || Yi.Length < 2 || Y0.All(v => v == 0) || Yi.All(v => v == 0) || Y0.Any(double.IsNaN) || Yi.Any(double.IsNaN))
                             {
                                 if (logSynch) Logger.W(tag, $"invalid data for correlation, channel {chani.id}");
@@ -251,10 +265,10 @@ namespace station1.Models
 
 
 
-                            ///////////////// main part ///////////////// 
-                            
-                            double corr = AudioProcessing.findTimeShiftAsync(T0, Y0, Ti, Yi, maxLagMs); // calculate 
-                            ///////////////// ///////////////// ///////////////// 
+                            /* ================= */
+                            /*GCC-PHAT */
+                            double corr = AudioProcessing.findTimeShiftAsync(T0, Y0, Ti, Yi, maxLagMs); // Oblicz opoznienie 
+                            /* ================= */
 
 
                             if (double.IsNaN(corr))
@@ -268,8 +282,7 @@ namespace station1.Models
                                 int corrUs = (int)(corr * 1000.0); //ms to us
                                 string toPlot = $"id: {chani.id}, time: {timeStampUs} us, correlation: {corrUs} us";
                                 reci.rememberCorrelation(timeStampUs, corr);
-                                //doaLocater.run(reci);
-                                //Logger.I(tag, toPlot);
+
 
                                 if (exactSynch)
                                 {
@@ -280,16 +293,16 @@ namespace station1.Models
                             }
 
                         }// for loop
-                        
-                        if (exactSynch)
+
+                        if (exactSynch) // Sprawdz czy wszyscy sa zsynchronizowani
                         {
-                            // Mark the reference channel as logically done
-                            snap[0].Key.isExactSynch = true; // reference channel
+                            snap[0].Key.isExactSynch = true; // sygnal referencyjny
 
                             bool allOk = true;
-                            foreach (var kvp in snap) { // use the same stable snapshot!
+                            foreach (var kvp in snap)
+                            {
                                 {
-                                    if(kvp.Key.id == refChan.id)
+                                    if (kvp.Key.id == refChan.id)
                                     {
                                         kvp.Key.offsetEndMs = 0.0;
                                         kvp.Key.isExactSynchDone = true; ;
@@ -312,18 +325,21 @@ namespace station1.Models
 
 
                         break;
-                 }
+                    }
             }
 
         }
 
 
 
-
+        /// <summary>
+        /// Przesyla dane do klientow
+        /// </summary>
+        /// <param name="snap"></param>
         private void sendData2Clients(ref List<KeyValuePair<AudioChunkChannel, AudioRecord>> snap)
         {
 
-            for (int i =0; i < snap.Count; i++)
+            for (int i = 0; i < snap.Count; i++)
             {
                 var (chani, reci) = (snap[i].Key, snap[i].Value);   //the channel to update
 
@@ -332,10 +348,14 @@ namespace station1.Models
                 chani.sendTimeStampTcp(timestampUs);
 
                 Task.Delay(1000).Wait(); // small delay to avoid overwhelming the network
-                
+
             }
         }
 
+        /// <summary>
+        /// Dokladna synchronizacja
+        /// </summary>
+        /// remarks> Polaczone z przyciskiem </remarks>
         public void ExactSynch()
         {
             exactSynch = true;
@@ -348,9 +368,15 @@ namespace station1.Models
             }
 
             doaLocater.reset();
-                
-            
+
         }
+
+        /// <summary>
+        /// WYkresy i przetwarzanie audio
+        /// </summary>
+        /// <param name="refForm_MainDisplay"></param>
+        /// <param name="clcTok"></param>
+        /// <returns></returns>
         public async Task RunProgram(Form_mainDisplay refForm_MainDisplay, CancellationToken clcTok)
         {
             formsPlotCorrRef.Plot.Axes.SetLimitsY(-Globals.MaxLag, Globals.MaxLag);
@@ -360,43 +386,41 @@ namespace station1.Models
             bool firstRun = true;
             while (!clcTok.IsCancellationRequested)
             {
-                List<AudioChunkChannel> snap; // snapshot of current clients
-                // Ensure every current client has an AudioRecord
+                List<AudioChunkChannel> snap; // migawka klientow
+                // Kazdy klient powinien miec pare z AudioRecord
                 lock (clientsBuffer) snap = clientsBuffer.ToList();
                 foreach (var c in snap)
                 {
-                     AudioRecord newRecord = new AudioRecord(c.id, firstRun);
+                    AudioRecord newRecord = new AudioRecord(c.id, firstRun);
                     plotBuffer.TryAdd(c, newRecord);
-
 
                     firstRun = false;
                 }
 
                 foreach (var key in plotBuffer.Keys)
                 {
-                    if (!snap.Contains(key)) plotBuffer.TryRemove(key, out _);
+                    if (!snap.Contains(key)) plotBuffer.TryRemove(key, out _); // usuwa klientow ktorzy sie odlaczyli
                 }
 
 
-                var snap2 = plotBuffer                   // snapshot of current clients
+                var snap2 = plotBuffer
                     .OrderBy(kvp => kvp.Key.id)
                     .ToList();
 
-                
+
                 countActiveClients();
 
-                
 
-                //////////////////// PROECESS AUDIO ////////////////////
+                /* ============================== */
+                /* Process aduio */
+                /* Przeprowadza lokalizacje DoA */
                 processAudio(ref snap2);
-                
-                if(processState == ProcessState.NORMAL)
+
+                if (processState == ProcessState.NORMAL)
                 {
                     doaLocater.localise(ref snap2);
                 }
-                    
-
-                ////////////////////////////////////////////////////////
+                /* ============================== */
 
 
 
@@ -420,20 +444,12 @@ namespace station1.Models
         }
 
 
+        /// <summary>
+        /// Odswieza wykresy
+        /// </summary>
+        /// <param name="refForm_MainDisplay"></param>
         private void plot(Form_mainDisplay refForm_MainDisplay)
         {
-            //double nowMs = stopWatch.Elapsed.TotalMilliseconds;
-            //if (nowMs > lastPlotUpdateMs + Globals.refreshPlotRate)
-            //{
-            //    lastPlotUpdateMs = nowMs;
-            //}
-            //else
-            //{
-            //    return; // skip update
-            //}
-
-
-
             refForm_MainDisplay.Invoke((MethodInvoker)delegate
             {
                 double currTime = stopWatch.Elapsed.TotalMilliseconds;
@@ -469,17 +485,12 @@ namespace station1.Models
                 }
             }
 
-            // Add horizontal line at y=0
             var y0Main = formsPlotCorrRef.Plot.Add.HorizontalLine(0);
             y0Main.Color = new ScottPlot.Color(117, 117, 117);      // gray
             y0Main.LineWidth = 2.5f;
 
-            //formsPlot_locate.Invoke((MethodInvoker)(() => formsPlot_locate.Refresh()));
             formsPlotRef.Invoke((MethodInvoker)(() => formsPlotRef.Refresh()));
             formsPlotCorrRef.Invoke((MethodInvoker)(() => formsPlotCorrRef.Refresh()));
-
-            //formsPlot_doa.Invoke((MethodInvoker)(() => formsPlot_doa.Refresh()));
-            //formsPlot_locate.Invoke((MethodInvoker)(() => formsPlot_locate.Refresh()));
         }
 
     }

@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 
 namespace station1.Models
 {
+    /// <summary>
+    /// Struktura z danymi do kompensacji dryfu
+    /// </summary>
     public struct compPattern
     {
         public double stepCorr;
@@ -20,23 +23,26 @@ namespace station1.Models
 
         public compPattern(double stepCorr, double stepTime)
         {
-            //Logger.S("compPatter", $"compPatter created, stepCorr: {stepCorr}, stepTime: {stepTime}");
+
             this.stepCorr = stepCorr;
             this.stepTime = stepTime;
             this.lastCompTime = -1.0;
         }
     }
 
+    /// <summary>
+    /// Kanal reprezentujaczycy polaczenie z klientem audio
+    /// </summary>
     internal class AudioChunkChannel
     {
         private compPattern compPattern;
         public bool isExactSynch = false;
         public bool isExactSynchDone = false;
         private static string tag = "ClientChannel";
-        public int audioLength = 0; // length of audio data in bytes
+        public int audioLength = 0; // dlugosc danych audio w bajtach
         private Stopwatch runtimeWatch = Stopwatch.StartNew();
-        public double recentTimestampMs = 0.0; // in ms client current timestamp of the last received packet
-        //public double? offsetMs = null; // in ms client offset
+        public double recentTimestampMs = 0.0; // Ostatni znak czasu
+
         public double offsetFreq = 0;
         public bool synchronise = false;
         public int id { get; }
@@ -46,8 +52,15 @@ namespace station1.Models
         public long lastReadTime;
         private Stopwatch stopWatch = Stopwatch.StartNew();
 
+        public double Freq = 0.0;
+
         public double? accEndMs = null;
         public double offsetEndMs;
+
+        /// <summary>
+        /// Konstruktor kanalu. Bierze zainicjalizowanego TcpClienta
+        /// </summary>
+        /// <param name="tcpClient"></param>
         public AudioChunkChannel(TcpClient tcpClient)
         {
             this.tcpClient = tcpClient;
@@ -57,7 +70,7 @@ namespace station1.Models
             Logger.I(tag, $"Created client with id: {this.id}");
 
 
-            // todo: replace hardcoded 
+            // Ustawienia metody kompensacji dryfu
             double deltaCorr;
             double deltaTime;
 
@@ -66,7 +79,7 @@ namespace station1.Models
                 case 12:
                     {
                         deltaCorr = -204.0 / 1000;
-                        deltaTime = 2*96245.000;
+                        deltaTime = 2 * 96245.000;
                         break;
                     }
 
@@ -77,48 +90,57 @@ namespace station1.Models
                         break;
                     }
 
-                default: // other id (reference mic)
+                default: //mikrofon referencyjny
                     {
                         deltaCorr = 0.0;
                         deltaTime = 0.0;
                         break;
                     }
             }
+            // logi
             Logger.I(tag, $"Using compensation pattern: dCorr={deltaCorr}, dTime={deltaTime}");
             this.compPattern = new compPattern(deltaCorr, deltaTime);
             tag = $"ClientChannel {this.id}";
         }
 
+        /// <summary>
+        /// Resetuje mechanizm kompensacji dryfu
+        /// </summary>
+        /// </remarks>  Uzyte przy ponownej synchronizacji </remarks>
         public void resetCompPatter()
         {
             compPattern.lastCompTime = -1.0;
         }
 
+        /// <summary>
+        /// Resetuje dane przy ponownej synchronizacji
+        /// </summary>
         public void SynchRecord()
         {
             this.isExactSynch = false;
             this.isExactSynchDone = false;
             this.offsetEndMs = 0.0;
             this.accEndMs = null;
-            long timestampUs = stopWatch.ElapsedMilliseconds * 1000; // in microseconds
+            long timestampUs = stopWatch.ElapsedMilliseconds * 1000; // us
             this.sendTimeStampTcp(timestampUs);
-            
+
         }
 
 
-        // manual sync
-        public void sendTimeStampTcp(long timestampUs, char header = 'M') 
+        /// <summary>
+        /// Manualna synchronizacja. Wysyla znacznik czasu do klienta przez TCP
+        /// </summary>
+        /// <param name="timestampUs"></param>
+        /// <param name="header"></param>
+        public void sendTimeStampTcp(long timestampUs, char header = 'M')
         {
-            if(!this.tcpClient.Connected)
+            if (!this.tcpClient.Connected)
             {
                 Logger.W(tag, $"Cannot send timestamp to client {this.id} because it is not connected");
                 return;
             }
-            //Logger.I(tag, $"sending data to client {this.id}");
-            NetworkStream stream = this.tcpClient.GetStream();
 
-            // header // 'S' for sync
-            //long timestampUs = timer.ElapsedMilliseconds * 1000; // in microseconds
+            NetworkStream stream = this.tcpClient.GetStream();
 
             byte[] headerBytes = new byte[9];
             headerBytes[0] = (byte)header;
@@ -128,6 +150,13 @@ namespace station1.Models
             Logger.I(tag, $"Manual synchronisation, timestamp {timestampUs} sent to client {this.id}");
         }
 
+        /// <summary>
+        /// Wysyla wszystkie dane przez strumien sieciowy
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="buffer"> Zazwyczaj header synchronizacji NTP</param>
+        /// <param name="ct"></param>
+        /// <returns> Uzywane przy synchronizacji NTP </returns>
         private static async Task WriteAllAsync(NetworkStream stream, ReadOnlyMemory<byte> buffer, CancellationToken ct)
         {
             int offset = 0;
@@ -139,7 +168,12 @@ namespace station1.Models
             }
         }
 
-
+        /// <summary>
+        /// Funkcja kompensujaca dryf czasu klienta
+        /// </summary>
+        /// <param name="serverNowMs"> Aktualny czas</param>
+        /// <returns></returns>
+        /// remarks> Co zadany czas aplikuje korekcje lagu </remarks>
         public double compensateDrift(double serverNowMs)
         {
             if (id == 11) return 0.0; // skip for testing
@@ -155,6 +189,6 @@ namespace station1.Models
             {
                 return 0.0;
             }
-        } 
+        }
     }
 }
